@@ -1,0 +1,271 @@
+{
+    "name": "06 - Generate Guidance (Enhanced)",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "generate-guidance",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "webhook-generate-guidance",
+            "name": "Webhook - Generate Guidance",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                250,
+                400
+            ],
+            "webhookId": "generate-guidance"
+        },
+        {
+            "parameters": {
+                "jsCode": "// Extract request data\nconst query = $input.item.json.query;\nconst tool = $input.item.json.tool;\nconst context = $input.item.json.context;\nconst screenshot = $input.item.json.screenshot;\n\nreturn {\n  query: query,\n  tool: tool,\n  context: context,\n  screenshot: screenshot,\n  timestamp: Date.now(),\n  requestId: `guidance_${Date.now()}`\n};"
+            },
+            "id": "extract-request-data",
+            "name": "Extract Request Data",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                450,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "url": "https://abundant-porpoise-181.convex.cloud/api/query",
+                "method": "POST",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "path",
+                            "value": "knowledge:searchKnowledge"
+                        },
+                        {
+                            "name": "args",
+                            "value": "={{ {\n  query: $json.query,\n  tool: $json.tool,\n  limit: 5\n} }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "query-knowledge-base",
+            "name": "Query Knowledge Base",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                650,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "// Combine knowledge results into context\nconst results = $input.item.json.results || [];\n\nconst knowledgeContext = results.map(r => \n  `Section: ${r.section}\\nContent: ${r.content}`\n).join('\\n\\n---\\n\\n');\n\nreturn {\n  knowledgeContext: knowledgeContext,\n  relevantDocs: results.length\n};"
+            },
+            "id": "format-knowledge",
+            "name": "Format Knowledge Context",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                850,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "model": "gpt-4o",
+                "messages": {
+                    "values": [
+                        {
+                            "role": "system",
+                            "content": "You are Navigator, a calm, expert-level guidance system. You help users complete tasks in {{ $('Extract Request Data').item.json.tool }}.\n\nRULES:\n- Be calm, confident, minimal\n- One action per step\n- Short sentences only\n- Never over-explain\n- Never show uncertainty\n- Never mention AI, models, or backend\n- Sound like a senior product expert guiding quietly\n\nYou will generate a step-by-step procedure. Each step must have:\n- instruction: One clear, direct sentence (14 words max)\n- reassurance: Optional short context (10 words max)\n- targetElement: CSS selector for the UI element (if applicable)\n- action: Expected user action (click, type, select, etc.)\n\nReturn ONLY valid JSON array of steps."
+                        },
+                        {
+                            "role": "user",
+                            "content": "=User is using: {{ $('Extract Request Data').item.json.tool }}\nUser's question: {{ $('Extract Request Data').item.json.query }}\n\nCurrent UI context:\n{{ $('Extract Request Data').item.json.context }}\n\nRelevant documentation:\n{{ $json.knowledgeContext }}\n\nGenerate a step-by-step procedure to help the user. Return JSON array:\n[\n  {\n    \"stepNumber\": 1,\n    \"instruction\": \"Click the button\",\n    \"reassurance\": \"This opens the form\",\n    \"targetElement\": \"button.create\",\n    \"action\": \"click\"\n  }\n]"
+                        }
+                    ]
+                },
+                "options": {
+                    "maxTokens": 1000,
+                    "temperature": 0.3
+                }
+            },
+            "id": "generate-procedure",
+            "name": "GPT-4 - Generate Procedure",
+            "type": "@n8n/n8n-nodes-langchain.openAi",
+            "typeVersion": 1,
+            "position": [
+                1050,
+                400
+            ],
+            "credentials": {
+                "openAiApi": {
+                    "id": "openai-credentials",
+                    "name": "OpenAI API"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "// Parse GPT-4 response\nconst response = $input.item.json.choices[0].message.content;\n\n// Extract JSON from response\nlet jsonStr = response;\nif (response.includes('```json')) {\n  jsonStr = response.split('```json')[1].split('```')[0].trim();\n} else if (response.includes('```')) {\n  jsonStr = response.split('```')[1].split('```')[0].trim();\n}\n\ntry {\n  const steps = JSON.parse(jsonStr);\n  \n  // Ensure all steps have required fields\n  const formattedSteps = steps.map((step, index) => ({\n    stepNumber: index + 1,\n    totalSteps: steps.length,\n    instruction: step.instruction,\n    reassurance: step.reassurance || null,\n    targetSelector: step.targetElement || null,\n    expectedAction: step.action || null\n  }));\n  \n  return {\n    steps: formattedSteps,\n    totalSteps: formattedSteps.length,\n    success: true\n  };\n} catch (error) {\n  return {\n    steps: [],\n    totalSteps: 0,\n    success: false,\n    error: error.message,\n    rawResponse: response\n  };\n}"
+            },
+            "id": "parse-procedure",
+            "name": "Parse Procedure",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1250,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "url": "https://abundant-porpoise-181.convex.cloud/api/mutation",
+                "method": "POST",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "path",
+                            "value": "executions:create"
+                        },
+                        {
+                            "name": "args",
+                            "value": "={{ {\n  procedure: {\n    name: $('Extract Request Data').item.json.query,\n    tool: $('Extract Request Data').item.json.tool,\n    steps: $json.steps\n  },\n  status: 'in_progress',\n  currentStep: 0,\n  startedAt: Date.now()\n} }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "create-execution",
+            "name": "Create Execution Record",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                1450,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ {\n  success: true,\n  executionId: $json.id,\n  steps: $('Parse Procedure').item.json.steps,\n  totalSteps: $('Parse Procedure').item.json.totalSteps,\n  currentStep: $('Parse Procedure').item.json.steps[0],\n  message: `Generated ${$('Parse Procedure').item.json.totalSteps}-step procedure`\n} }}"
+            },
+            "id": "respond-with-guidance",
+            "name": "Respond with Guidance",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "position": [
+                1650,
+                400
+            ]
+        }
+    ],
+    "connections": {
+        "Webhook - Generate Guidance": {
+            "main": [
+                [
+                    {
+                        "node": "Extract Request Data",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Extract Request Data": {
+            "main": [
+                [
+                    {
+                        "node": "Query Knowledge Base",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Query Knowledge Base": {
+            "main": [
+                [
+                    {
+                        "node": "Format Knowledge Context",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format Knowledge Context": {
+            "main": [
+                [
+                    {
+                        "node": "GPT-4 - Generate Procedure",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "GPT-4 - Generate Procedure": {
+            "main": [
+                [
+                    {
+                        "node": "Parse Procedure",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse Procedure": {
+            "main": [
+                [
+                    {
+                        "node": "Create Execution Record",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Create Execution Record": {
+            "main": [
+                [
+                    {
+                        "node": "Respond with Guidance",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "staticData": null,
+    "tags": [],
+    "triggerCount": 0,
+    "updatedAt": "2026-01-28T16:06:27.000Z",
+    "versionId": "1"
+}

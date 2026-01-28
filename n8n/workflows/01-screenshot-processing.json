@@ -1,0 +1,216 @@
+{
+    "name": "01 - Screenshot Processing Pipeline",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "screenshot-uploaded",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "webhook-trigger",
+            "name": "New Screenshot Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                250,
+                300
+            ],
+            "webhookId": "screenshot-uploaded"
+        },
+        {
+            "parameters": {
+                "url": "={{ $json.screenshot_url }}",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": []
+                },
+                "options": {}
+            },
+            "id": "download-screenshot",
+            "name": "Download Screenshot",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                470,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "// Extract screenshot data\nconst screenshotId = $input.first().json.screenshot_id;\nconst screenshotUrl = $input.first().json.screenshot_url;\nconst timestamp = $input.first().json.timestamp;\nconst imageData = $input.first().binary.data;\n\n// Convert to base64 if needed\nconst base64Image = imageData.toString('base64');\n\nreturn {\n  screenshot_id: screenshotId,\n  screenshot_url: screenshotUrl,\n  timestamp: timestamp,\n  image_base64: base64Image\n};"
+            },
+            "id": "prepare-image",
+            "name": "Prepare Image",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                690,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "authentication": "oAuth2",
+                "resource": "chat",
+                "operation": "create",
+                "model": "gpt-4-vision-preview",
+                "messages": {
+                    "values": [
+                        {
+                            "role": "user",
+                            "content": "=Analyze this screenshot and extract all UI elements. Return a JSON object with:\n- elements: array of {type, text, position, isClickable}\n- layout: {width, height, sections}\n- text_content: all visible text\n- url: detected URL if any\n- title: page title if visible\n\nImage: data:image/png;base64,{{ $json.image_base64 }}"
+                        }
+                    ]
+                },
+                "options": {
+                    "maxTokens": 2000,
+                    "temperature": 0.3
+                }
+            },
+            "id": "vision-analysis",
+            "name": "Vision API Analysis",
+            "type": "@n8n/n8n-nodes-langchain.openAi",
+            "typeVersion": 1,
+            "position": [
+                910,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "// Parse Vision API response\nconst visionResponse = $input.first().json.choices[0].message.content;\nconst screenshotId = $('Prepare Image').first().json.screenshot_id;\nconst timestamp = $('Prepare Image').first().json.timestamp;\n\n// Try to parse JSON from response\nlet uiState;\ntry {\n  // Extract JSON from markdown code blocks if present\n  const jsonMatch = visionResponse.match(/```json\\n([\\s\\S]*?)\\n```/);\n  if (jsonMatch) {\n    uiState = JSON.parse(jsonMatch[1]);\n  } else {\n    uiState = JSON.parse(visionResponse);\n  }\n} catch (error) {\n  // Fallback: create basic structure\n  uiState = {\n    elements: [],\n    layout: {},\n    text_content: visionResponse,\n    raw_response: visionResponse\n  };\n}\n\n// Add metadata\nuiState.screenshot_id = screenshotId;\nuiState.timestamp = timestamp;\nuiState.processed_at = Date.now();\n\nreturn uiState;"
+            },
+            "id": "parse-ui-state",
+            "name": "Parse UI State",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1130,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "https://abundant-porpoise-181.convex.cloud/api/mutation",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": []
+                },
+                "jsonBody": "={{ JSON.stringify({\n  path: 'ui_states:create',\n  args: $json\n}) }}",
+                "options": {}
+            },
+            "id": "store-convex",
+            "name": "Store in Convex",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                1350,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ JSON.stringify({\n  success: true,\n  screenshot_id: $json.screenshot_id,\n  ui_state_id: $json.id,\n  message: 'Screenshot processed successfully'\n}) }}"
+            },
+            "id": "webhook-response",
+            "name": "Webhook Response",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "position": [
+                1570,
+                300
+            ]
+        }
+    ],
+    "connections": {
+        "New Screenshot Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Download Screenshot",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Download Screenshot": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Image",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Prepare Image": {
+            "main": [
+                [
+                    {
+                        "node": "Vision API Analysis",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Vision API Analysis": {
+            "main": [
+                [
+                    {
+                        "node": "Parse UI State",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse UI State": {
+            "main": [
+                [
+                    {
+                        "node": "Store in Convex",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Store in Convex": {
+            "main": [
+                [
+                    {
+                        "node": "Webhook Response",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "staticData": null,
+    "tags": [],
+    "triggerCount": 1,
+    "updatedAt": "2026-01-28T00:00:00.000Z",
+    "versionId": "1"
+}

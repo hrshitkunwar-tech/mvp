@@ -1,0 +1,232 @@
+{
+    "name": "02 - Procedure Execution Pipeline",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "execute-procedure",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "intent-webhook",
+            "name": "Intent Trigger",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                250,
+                300
+            ],
+            "webhookId": "execute-procedure"
+        },
+        {
+            "parameters": {
+                "url": "https://abundant-porpoise-181.convex.cloud/api/query",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "jsonBody": "={{ JSON.stringify({\n  path: 'knowledge:searchKnowledge',\n  args: {\n    query: $json.intent,\n    limit: 5\n  }\n}) }}",
+                "options": {}
+            },
+            "id": "query-knowledge",
+            "name": "Query Knowledge Base",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                470,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "authentication": "oAuth2",
+                "resource": "chat",
+                "operation": "create",
+                "model": "gpt-4-turbo",
+                "messages": {
+                    "values": [
+                        {
+                            "role": "system",
+                            "content": "You are a procedure selection agent. Based on user intent and available documentation, select the most appropriate procedure to execute. Return a JSON object with: {procedure_name, confidence, reasoning, steps_preview}"
+                        },
+                        {
+                            "role": "user",
+                            "content": "=User Intent: {{ $('Intent Trigger').first().json.intent }}\\n\\nAvailable Documentation:\\n{{ JSON.stringify($json, null, 2) }}\\n\\nSelect the best procedure to execute."
+                        }
+                    ]
+                },
+                "options": {
+                    "maxTokens": 1000,
+                    "temperature": 0.2
+                }
+            },
+            "id": "select-procedure",
+            "name": "LLM Procedure Selection",
+            "type": "@n8n/n8n-nodes-langchain.openAi",
+            "typeVersion": 1,
+            "position": [
+                690,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "// Parse LLM response\nconst llmResponse = $input.first().json.choices[0].message.content;\nconst userIntent = $('Intent Trigger').first().json.intent;\nconst userId = $('Intent Trigger').first().json.user_id || 'anonymous';\n\n// Extract JSON from response\nlet procedureSelection;\ntry {\n  const jsonMatch = llmResponse.match(/```json\\n([\\s\\S]*?)\\n```/);\n  if (jsonMatch) {\n    procedureSelection = JSON.parse(jsonMatch[1]);\n  } else {\n    procedureSelection = JSON.parse(llmResponse);\n  }\n} catch (error) {\n  procedureSelection = {\n    procedure_name: 'unknown',\n    confidence: 0,\n    reasoning: llmResponse,\n    error: error.message\n  };\n}\n\n// Add execution metadata\nreturn {\n  user_id: userId,\n  intent: userIntent,\n  procedure: procedureSelection.procedure_name,\n  confidence: procedureSelection.confidence,\n  reasoning: procedureSelection.reasoning,\n  started_at: Date.now(),\n  status: 'initialized'\n};"
+            },
+            "id": "parse-selection",
+            "name": "Parse Selection",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                910,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "https://abundant-porpoise-181.convex.cloud/api/mutation",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "jsonBody": "={{ JSON.stringify({\n  path: 'executions:create',\n  args: $json\n}) }}",
+                "options": {}
+            },
+            "id": "create-execution",
+            "name": "Create Execution Record",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                1130,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "http://localhost:5678/webhook/generate-guidance",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "jsonBody": "={{ JSON.stringify({\n  execution_id: $json.id,\n  procedure: $('Parse Selection').first().json.procedure,\n  step_index: 0\n}) }}",
+                "options": {}
+            },
+            "id": "trigger-guidance",
+            "name": "Trigger Guidance Generation",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                1350,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ JSON.stringify({\n  success: true,\n  execution_id: $('Create Execution Record').first().json.id,\n  procedure: $('Parse Selection').first().json.procedure,\n  confidence: $('Parse Selection').first().json.confidence,\n  message: 'Procedure execution started'\n}) }}"
+            },
+            "id": "webhook-response",
+            "name": "Webhook Response",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "position": [
+                1570,
+                300
+            ]
+        }
+    ],
+    "connections": {
+        "Intent Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Query Knowledge Base",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Query Knowledge Base": {
+            "main": [
+                [
+                    {
+                        "node": "LLM Procedure Selection",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "LLM Procedure Selection": {
+            "main": [
+                [
+                    {
+                        "node": "Parse Selection",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse Selection": {
+            "main": [
+                [
+                    {
+                        "node": "Create Execution Record",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Create Execution Record": {
+            "main": [
+                [
+                    {
+                        "node": "Trigger Guidance Generation",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Trigger Guidance Generation": {
+            "main": [
+                [
+                    {
+                        "node": "Webhook Response",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "staticData": null,
+    "tags": [],
+    "triggerCount": 1,
+    "updatedAt": "2026-01-28T00:00:00.000Z",
+    "versionId": "1"
+}

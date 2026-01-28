@@ -1,0 +1,51 @@
+{
+  "manifest_version": 3,
+  "name": "Navigator",
+  "version": "2.0.0",
+  "description": "Context-aware, on-demand guidance for any web tool",
+  "action": {
+    "default_title": "Navigator - Click for guidance"
+  },
+  "background": {
+    "service_worker": "background-enhanced.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content-script.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "permissions": [
+    "tabs",
+    "activeTab",
+    "storage",
+    "scripting",
+    "notifications"
+  ],
+  "host_permissions": [
+    "https://abundant-porpoise-181.convex.cloud/*",
+    "http://localhost:5678/*",
+    "<all_urls>"
+  ],
+  "commands": {
+    "activate-guidance": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+N",
+        "mac": "Command+Shift+N"
+      },
+      "description": "Activate Navigator guidance"
+    }
+  },
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  }
+}

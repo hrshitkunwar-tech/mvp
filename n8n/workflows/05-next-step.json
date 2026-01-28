@@ -1,0 +1,301 @@
+{
+    "name": "05 - Next Step",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "next-step",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "webhook-next-step",
+            "name": "Webhook - Next Step",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                250,
+                300
+            ],
+            "webhookId": "next-step"
+        },
+        {
+            "parameters": {
+                "jsCode": "// Extract request data\nconst stepIndex = $input.item.json.stepIndex;\nconst tool = $input.item.json.tool;\nconst context = $input.item.json.context;\nconst executionId = $input.item.json.executionId || null;\n\nreturn {\n  stepIndex: stepIndex,\n  tool: tool,\n  context: context,\n  executionId: executionId,\n  requestId: `next_${Date.now()}`\n};"
+            },
+            "id": "extract-request",
+            "name": "Extract Request Data",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                450,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "https://abundant-porpoise-181.convex.cloud/api/query",
+                "method": "POST",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "path",
+                            "value": "executions:getById"
+                        },
+                        {
+                            "name": "args",
+                            "value": "={{ { id: $json.executionId } }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "get-execution",
+            "name": "Get Current Execution",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                650,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "// Get execution data\nconst execution = $input.item.json;\nconst stepIndex = $('Extract Request Data').item.json.stepIndex;\n\n// Check if execution exists and has steps\nif (!execution || !execution.procedure || !execution.procedure.steps) {\n  return {\n    complete: true,\n    reason: 'No execution or procedure found'\n  };\n}\n\nconst steps = execution.procedure.steps;\nconst nextIndex = stepIndex + 1;\n\n// Check if we've completed all steps\nif (nextIndex >= steps.length) {\n  return {\n    complete: true,\n    totalSteps: steps.length,\n    completedSteps: steps.length\n  };\n}\n\n// Get next step\nconst nextStep = steps[nextIndex];\n\nreturn {\n  complete: false,\n  stepNumber: nextIndex + 1,\n  totalSteps: steps.length,\n  instruction: nextStep.instruction,\n  reassurance: nextStep.hints?.[0] || null,\n  targetSelector: nextStep.targetElement || null,\n  expectedAction: nextStep.action || null\n};"
+            },
+            "id": "determine-next-step",
+            "name": "Determine Next Step",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                850,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{ $json.complete }}",
+                            "value2": true
+                        }
+                    ]
+                }
+            },
+            "id": "check-if-complete",
+            "name": "Check if Complete",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                1050,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "https://abundant-porpoise-181.convex.cloud/api/mutation",
+                "method": "POST",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "path",
+                            "value": "executions:complete"
+                        },
+                        {
+                            "name": "args",
+                            "value": "={{ {\n  id: $('Extract Request Data').item.json.executionId,\n  status: 'completed',\n  completedAt: Date.now()\n} }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "mark-complete",
+            "name": "Mark Execution Complete",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                1250,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "url": "https://abundant-porpoise-181.convex.cloud/api/mutation",
+                "method": "POST",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "path",
+                            "value": "executions:updateStep"
+                        },
+                        {
+                            "name": "args",
+                            "value": "={{ {\n  id: $('Extract Request Data').item.json.executionId,\n  stepIndex: $json.stepNumber - 1,\n  status: 'in_progress'\n} }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "update-step-status",
+            "name": "Update Step Status",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                1250,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ {\n  complete: true,\n  success: true,\n  message: 'Workflow completed successfully!',\n  totalSteps: $json.totalSteps || 0,\n  completedSteps: $json.completedSteps || 0\n} }}"
+            },
+            "id": "respond-complete",
+            "name": "Respond - Complete",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "position": [
+                1450,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ {\n  complete: false,\n  success: true,\n  stepNumber: $json.stepNumber,\n  totalSteps: $json.totalSteps,\n  instruction: $json.instruction,\n  reassurance: $json.reassurance,\n  targetSelector: $json.targetSelector,\n  expectedAction: $json.expectedAction\n} }}"
+            },
+            "id": "respond-next-step",
+            "name": "Respond - Next Step",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "position": [
+                1450,
+                400
+            ]
+        }
+    ],
+    "connections": {
+        "Webhook - Next Step": {
+            "main": [
+                [
+                    {
+                        "node": "Extract Request Data",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Extract Request Data": {
+            "main": [
+                [
+                    {
+                        "node": "Get Current Execution",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Get Current Execution": {
+            "main": [
+                [
+                    {
+                        "node": "Determine Next Step",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Determine Next Step": {
+            "main": [
+                [
+                    {
+                        "node": "Check if Complete",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check if Complete": {
+            "main": [
+                [
+                    {
+                        "node": "Mark Execution Complete",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Update Step Status",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Mark Execution Complete": {
+            "main": [
+                [
+                    {
+                        "node": "Respond - Complete",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Update Step Status": {
+            "main": [
+                [
+                    {
+                        "node": "Respond - Next Step",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "staticData": null,
+    "tags": [],
+    "triggerCount": 0,
+    "updatedAt": "2026-01-28T16:06:27.000Z",
+    "versionId": "1"
+}
