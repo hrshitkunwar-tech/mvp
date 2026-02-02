@@ -248,12 +248,45 @@
   }
 
   /**
-   * Highlight a specific element on the page
+   * Highlight a specific element on the page with fallback strategies
    */
   function highlightElement(selector) {
     try {
-      const element = document.querySelector(selector);
+      let element = null;
+      let usedSelector = selector;
 
+      // Strategy 1: Try exact selector
+      element = document.querySelector(selector);
+
+      // Strategy 2: If not found and selector contains class, try by class only
+      if (!element && selector.includes('.')) {
+        const className = selector.split('.').filter(s => s && !s.startsWith(':')).pop();
+        if (className) {
+          element = document.querySelector(`.${className}`);
+          if (element) usedSelector = `.${className}`;
+        }
+      }
+
+      // Strategy 3: If not found and selector contains ID, try by ID
+      if (!element && selector.includes('#')) {
+        const id = selector.split('#').filter(s => s && !s.includes('[')).pop();
+        if (id) {
+          element = document.querySelector(`#${id}`);
+          if (element) usedSelector = `#${id}`;
+        }
+      }
+
+      // Strategy 4: If still not found, try partial class match
+      if (!element && selector.includes('.')) {
+        const partialClass = selector.match(/\.([a-zA-Z0-9_-]+)/);
+        if (partialClass) {
+          const className = partialClass[1];
+          element = document.querySelector(`[class*="${className}"]`);
+          if (element) usedSelector = `[class*="${className}"]`;
+        }
+      }
+
+      // Apply highlight if element found
       if (element) {
         if (highlightedElement) {
           highlightedElement.classList.remove('navigator-highlight');
@@ -261,9 +294,9 @@
         element.classList.add('navigator-highlight');
         highlightedElement = element;
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        console.log('[Navigator] Highlighted element:', selector);
+        console.log('[Navigator] Highlighted element:', usedSelector, '(original:', selector, ')');
       } else {
-        console.warn('[Navigator] Element not found:', selector);
+        console.warn('[Navigator] Element not found after all fallback attempts:', selector);
       }
     } catch (error) {
       console.error('[Navigator] Error highlighting element:', error);
