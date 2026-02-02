@@ -9,26 +9,27 @@ let currentContext = null;
 let currentOfflinePlan = null; // Store offline plan if backend fails
 
 // Listen for extension icon clicks
-chrome.action.onClicked.addListener(async (tab) => {
-    console.log('[Navigator] Extension clicked, activating guidance...');
+// COMMENTED OUT: Popup now handles icon clicks instead
+// chrome.action.onClicked.addListener(async (tab) => {
+//     console.log('[Navigator] Extension clicked, activating guidance...');
 
-    try {
-        const screenshot = await captureCurrentTab(tab.id);
-        const analysis = await detectToolAndUI(screenshot);  // Uses n8n or fallback
-        console.log('[Navigator] Tool detected:', analysis.tool);
+//     try {
+//         const screenshot = await captureCurrentTab(tab.id);
+//         const analysis = await detectToolAndUI(screenshot);  // Uses n8n or fallback
+//         console.log('[Navigator] Tool detected:', analysis.tool);
 
-        currentTool = analysis.tool;
-        currentContext = analysis.context;
+//         currentTool = analysis.tool;
+//         currentContext = analysis.context;
 
-        await showGuidancePrompt(tab.id, analysis);
+//         await showGuidancePrompt(tab.id, analysis);
 
-    } catch (error) {
-        console.error('[Navigator] Error activating guidance:', error);
-        // Fallback
-        const fallbackAnalysis = { tool: 'Unknown Tool', page: 'Home' };
-        await showGuidancePrompt(tab.id, fallbackAnalysis);
-    }
-});
+//     } catch (error) {
+//         console.error('[Navigator] Error activating guidance:', error);
+//         // Fallback
+//         const fallbackAnalysis = { tool: 'Unknown Tool', page: 'Home' };
+//         await showGuidancePrompt(tab.id, fallbackAnalysis);
+//     }
+// });
 
 // Capture Screenshot (Optimized for performance)
 async function captureCurrentTab(tabId) {
@@ -56,7 +57,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 sendResponse({ success: true });
             }
             else if (request.action === 'requestGuidance') {
-                const result = await handleGuidanceRequest(request.query, sender.tab?.id);
+                const result = await handleGuidanceRequest({ ...request, tabId: sender.tab?.id });
                 sendResponse(result);
             }
             else if (request.action === 'stepComplete') {
@@ -75,162 +76,324 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 /**
  * Handle guidance request
- * Tries n8n first. If fails, uses Smart Offline Mode.
+ * Connects to local Python Brain (http://127.0.0.1:8000).
  */
-async function handleGuidanceRequest(query, tabId) {
+async function handleGuidanceRequest(request) {
+    const { query, tool, context, tabId } = request;
+
     // capture screenshot for context
     const screenshot = await captureCurrentTab(tabId);
 
-    // 15-second timeout for n8n
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    // Smarter Tool Detection: Use passed tool, or fall back to stored currentTool
+    const qLower = (query || '').toLowerCase();
+    let activeTool = tool;
+
+    // If tool is unknown, try to use currentTool or detect from query
+    if (!activeTool || activeTool === 'Unknown Tool' || activeTool === 'Unknown App') {
+        if (currentTool && currentTool !== 'Unknown Tool' && currentTool !== 'Unknown App') {
+            activeTool = currentTool;
+        }
+    }
+
+    // Refine based on query keywords
+    if (!activeTool || activeTool === 'Unknown Tool' || activeTool === 'Unknown App') {
+        if (qLower.includes('notion')) activeTool = 'Notion';
+        else if (qLower.includes('github')) activeTool = 'GitHub';
+        else if (qLower.includes('openai')) activeTool = 'OpenAI';
+        else if (qLower.includes('convex')) activeTool = 'Convex';
+    }
+
+    currentTool = activeTool; // Sync global state
+
+    console.log(`[Navigator] Requesting guidance for ${activeTool}: "${query}"`);
 
     try {
-        console.log('[Navigator] Requesting guidance from Brain...');
-        const response = await fetch('http://localhost:5678/webhook/generate-guidance', {
+        console.log('[Navigator] Requesting guidance from Local Brain (127.0.0.1:8000)...');
+
+        // Use 127.0.0.1 and keepalive for reliability
+        const response = await fetch('http://127.0.0.1:8000/query', {
             method: 'POST',
+            mode: 'cors',
+            keepalive: true,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                query: query,
-                tool: currentTool,
-                context: currentContext,
-                screenshot: screenshot, // optimized jpeg
-                timestamp: Date.now()
-            }),
-            signal: controller.signal
+                question: query,
+                tool_name: activeTool !== 'Unknown App' ? activeTool : null,
+                top_k: 3
+            })
         });
 
-        clearTimeout(timeoutId);
+        if (!response.ok) throw new Error(`Server returned ${response.status} ${response.statusText}`);
 
-        if (!response.ok) throw new Error('n8n responded with error');
+        const data = await response.json();
 
-        const guidance = await response.json();
+        // Check if we got an answer
+        if (!data || !data.answer) throw new Error('Brain returned empty response');
 
-        // Check if empty response (common n8n failure)
-        if (!guidance || Object.keys(guidance).length === 0) throw new Error('n8n returned empty response');
+        // Parse Answer into Steps
+        const steps = parseAnswerToSteps(data.answer, activeTool);
+        console.log('[Navigator] Brain generated steps:', steps.length);
 
-        // Success - Clear offline plan
-        currentOfflinePlan = null;
+        // Success - Store plan for next/prev navigation
+        currentOfflinePlan = steps;
 
         // Show first step
-        if (guidance.steps && guidance.steps.length > 0) {
-            await chrome.tabs.sendMessage(tabId, { action: 'showGuidance', step: guidance.steps[0] });
+        if (steps.length > 0) {
+            await chrome.tabs.sendMessage(tabId, { action: 'showGuidance', step: steps[0] });
         }
-        return { success: true, guidance };
+        return { success: true, guidance: { steps } };
 
     } catch (error) {
-        clearTimeout(timeoutId);
-        console.warn('[Navigator] Brain offline/error. Switching to Embedded Brain.', error);
+        console.warn('[Navigator] Brain offline. Switching to Simple Mode.', error);
+        console.error('[Navigator] Error Details:', error);
 
-        // --- SMART OFFLINE MODE ---
-        // Generate a plausible plan locally so the user experience is smooth
-        currentOfflinePlan = generateOfflinePlan(currentTool, query);
+        // 1. Try "Expert System" (Curated Plans) FIRST
+        // Pass the error message so we can show it to the user
+        let steps = generateOfflinePlan(currentTool, query, error.message || String(error));
 
-        const firstStep = currentOfflinePlan[0];
-
-        await chrome.tabs.sendMessage(tabId, { action: 'showGuidance', step: firstStep });
-
-        return { success: true, guidance: { steps: currentOfflinePlan } };
+        currentOfflinePlan = steps;
+        await chrome.tabs.sendMessage(tabId, { action: 'showGuidance', step: steps[0] });
+        return { success: true, guidance: { steps } };
     }
+}
+
+function parseAnswerToSteps(answer, toolName) {
+    // 1. Robust Split (handle windows/unix newlines)
+    let textSegments = answer.split(/\r?\n/);
+
+    // 2. Filter Preamble and Noise
+    textSegments = textSegments
+        .map(line => line.trim())
+        .filter(line => {
+            if (!line) return false;
+            // Drop "Based on..." lines from RAG response
+            if (line.toLowerCase().startsWith('based on')) return false;
+            if (line.toLowerCase().startsWith('here is')) return false;
+            if (line.toLowerCase().startsWith('i found')) return false;
+
+            if (line.length < 5) return false;
+            return true;
+        })
+        .map(line => line.replace(/^\d+\.\s*/, '').replace(/[*#`]/g, '').trim());
+
+    // 3. Convert to Steps (Max 6)
+    const parsedSteps = textSegments.slice(0, 6).map((segment, index) => ({
+        stepNumber: index + 1,
+        totalSteps: Math.min(textSegments.length, 6),
+        instruction: segment,
+        reassurance: index === 0 ? `Source: ${toolName || 'Knowledge Base'}` : "",
+        targetSelector: null
+    }));
+
+    return parsedSteps;
 }
 
 /**
  * Handle step completion
  */
 async function handleStepComplete(stepIndex, tabId) {
-    // If we are in Offline Mode, use the stored plan
+    // Always use the stored plan (Offline OR Online)
     if (currentOfflinePlan) {
-        const nextIndex = stepIndex + 1;
+        // stepIndex comes from content script as the 1-based Step Number that just finished.
+        // e.g. Finished Step 1. We want array index 1 (which is Step 2).
+        const nextIndex = stepIndex;
+
         if (nextIndex < currentOfflinePlan.length) {
+            // Show next card in sequence
             const nextStep = currentOfflinePlan[nextIndex];
             await chrome.tabs.sendMessage(tabId, { action: 'showGuidance', step: nextStep });
             return { success: true, nextStep };
         } else {
-            // Done
-            await chrome.tabs.sendMessage(tabId, { action: 'hideGuidance' });
-            showSuccessNotification("Procedure complete!");
-            return { success: true, nextStep: { complete: true } };
+            // End of steps: Don't close, go back to Input (Step 0)
+            console.log('[Navigator] Plan complete. Resetting to input mode.');
+            const resetStep = {
+                stepNumber: 0,
+                totalSteps: 1,
+                instruction: "Is there anything else I can help you with?",
+                reassurance: "Ask another question..."
+            };
+
+            await chrome.tabs.sendMessage(tabId, { action: 'showGuidance', step: resetStep });
+            return { success: true, nextStep: resetStep };
         }
     }
 
-    // Otherwise, try n8n for dynamic next step
-    try {
-        const response = await fetch('http://localhost:5678/webhook/next-step', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ stepIndex, tool: currentTool })
-        });
-
-        if (!response.ok) throw new Error('n8n error');
-        const nextStep = await response.json();
-
-        if (nextStep.complete) {
-            await chrome.tabs.sendMessage(tabId, { action: 'hideGuidance' });
-            showSuccessNotification('Workflow complete!');
-        } else {
-            await chrome.tabs.sendMessage(tabId, { action: 'showGuidance', step: nextStep });
-        }
-        return { success: true, nextStep };
-
-    } catch (error) {
-        console.warn('[Navigator] Next step failed. Falling back to simple completion.');
-        // If n8n fails mid-flow, just finish gracefully
-        await chrome.tabs.sendMessage(tabId, { action: 'hideGuidance' });
-        showSuccessNotification("Task complete (Offline).");
-        return { success: true, nextStep: { complete: true } };
-    }
+    // Fallback if no plan found (shouldn't happen with above logic)
+    await chrome.tabs.sendMessage(tabId, { action: 'hideGuidance' });
+    return { success: true, nextStep: { complete: true } };
 }
 
 /**
  * Detect Tool (Mockable)
  */
 async function detectToolAndUI(screenshot) {
+    // 1. Try AI Vision (Backend with Ollama)
     try {
-        // Try n8n detection
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3000); // Fast timeout
-
-        const response = await fetch('http://localhost:5678/webhook/detect-tool', {
+        console.log('[Navigator] Sending screenshot to Ollama Vision (127.0.0.1:8000)...');
+        const response = await fetch('http://127.0.0.1:8000/webhook/detect-tool', {
             method: 'POST',
-            body: JSON.stringify({ screenshot }),
+            keepalive: true,
             headers: { 'Content-Type': 'application/json' },
-            signal: controller.signal
+            body: JSON.stringify({ screenshot })
         });
-        clearTimeout(timeoutId);
-        if (response.ok) return await response.json();
-        throw new Error('Detection failed');
-    } catch (e) {
-        // Fallback Detection based on URL
-        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-        const url = tabs[0]?.url || '';
-        let tool = 'Unknown App';
-        if (url.includes('notion.so')) tool = 'Notion';
-        if (url.includes('github.com')) tool = 'GitHub';
-        if (url.includes('figma.com')) tool = 'Figma';
 
-        return { tool, context: { url } };
+        if (response.ok) {
+            const data = await response.json();
+            if (data.tool && data.tool !== 'Unknown App') {
+                console.log('[Navigator] Vision Detected:', data.tool);
+                return data;
+            }
+        }
+    } catch (e) {
+        console.warn('[Navigator] Vision detection failed, falling back to URL.', e);
     }
+
+    // 2. Fallback Detection based on URL (Primary for now)
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    const url = tabs[0]?.url || '';
+    let tool = 'Unknown App';
+
+    if (url.includes('notion.so')) tool = 'Notion';
+    else if (url.includes('github.com')) tool = 'GitHub';
+    else if (url.includes('figma.com')) tool = 'Figma';
+    else if (url.includes('convex.dev')) tool = 'Convex';
+
+    return { tool, context: { url } };
 }
 
 /**
  * Generate Offline Plan (The "Embedded Brain")
+ * Now accepts errorMsg to display connectivity issues cleanly
  */
-function generateOfflinePlan(tool, query) {
+function generateOfflinePlan(tool, query, errorMsg = "") {
     const q = query.toLowerCase();
     const plans = [];
 
     // NOTION PLANS
     if (tool === 'Notion') {
-        if (q.includes('page') || q.includes('new') || q.includes('create')) {
+        if ((q.includes('page') || q.includes('new') || q.includes('create')) && !q.includes('database') && !q.includes('data base') && !q.includes('table')) {
             plans.push({ stepNumber: 1, totalSteps: 2, instruction: "Click the '+ New Page' button in sidebar.", reassurance: "It's usually at the bottom left.", targetSelector: ".notion-sidebar-container" });
             plans.push({ stepNumber: 2, totalSteps: 2, instruction: "Type a title for your page.", reassurance: "Press Enter to start writing.", targetSelector: "[contenteditable='true']" });
-        } else if (q.includes('database') || q.includes('table')) {
-            plans.push({ stepNumber: 1, totalSteps: 2, instruction: "Type '/database' on the page.", reassurance: "This opens the block menu.", targetSelector: ".notion-page-content" });
-            plans.push({ stepNumber: 2, totalSteps: 2, instruction: "Select 'Database - Inline'.", reassurance: "This creates a new table.", targetSelector: null });
+        } else if (q.includes('database') || q.includes('data base') || q.includes('table')) {
+            // DETAILED 6-STEP GUIDE FOR DATABASES
+            plans.push({
+                stepNumber: 1,
+                totalSteps: 6,
+                instruction: "Click anywhere on the open page.",
+                reassurance: "We need to focus the cursor here.",
+                targetSelector: ".notion-page-content"
+            });
+            plans.push({
+                stepNumber: 2,
+                totalSteps: 6,
+                instruction: "Type '/database' instantly.",
+                reassurance: "Don't pause! A menu will pop up.",
+                targetSelector: ".notion-text-block" // Approximate
+            });
+            plans.push({
+                stepNumber: 3,
+                totalSteps: 6,
+                instruction: "Press 'Enter' to select 'Database - Inline'.",
+                reassurance: "This inserts a new table grid.",
+                targetSelector: null
+            });
+            plans.push({
+                stepNumber: 4,
+                totalSteps: 6,
+                instruction: "Name your database.",
+                reassurance: "Click 'Untitled' and type a name.",
+                targetSelector: ".notion-collection-view-path" // Varies by view
+            });
+            plans.push({
+                stepNumber: 5,
+                totalSteps: 6,
+                instruction: "Add a new column.",
+                reassurance: "Click the '+' icon on the right.",
+                targetSelector: ".notion-collection-view-item-add"
+            });
+            plans.push({
+                stepNumber: 6,
+                totalSteps: 6,
+                instruction: "Add your first row of data.",
+                reassurance: "Click 'New' at the bottom.",
+                targetSelector: ".notion-collection-item-add" // 'New' button
+            });
         } else {
             // Generic Notion
             plans.push({ stepNumber: 1, totalSteps: 1, instruction: "I can't see the screen clearly.", reassurance: "Try rephrasing your request.", targetSelector: null });
         }
+    }
+    // VISION / IMAGES PLANS
+    else if (q.includes('vision') || q.includes('image') || q.includes('picture') || q.includes('see')) {
+        plans.push({
+            stepNumber: 1,
+            totalSteps: 3,
+            instruction: "Use 'gpt-4o' for all vision tasks.",
+            reassurance: "It has native multimodal capabilities.",
+            targetSelector: null
+        });
+        plans.push({
+            stepNumber: 2,
+            totalSteps: 3,
+            instruction: "Pass images as base64 URLs.",
+            reassurance: "In the 'user' message content content array.",
+            targetSelector: null
+        });
+        plans.push({
+            stepNumber: 3,
+            totalSteps: 3,
+            instruction: "Set 'max_tokens' to at least 300.",
+            reassurance: "Vision responses can be verbose.",
+            targetSelector: null
+        });
+    }
+    // CREATIVE WRITING PLANS
+    else if (q.includes('writing') || q.includes('creative') || q.includes('story') || q.includes('blog')) {
+        plans.push({
+            stepNumber: 1,
+            totalSteps: 3,
+            instruction: "Use 'gpt-4o' for creative writing.",
+            reassurance: "It offers the best nuance and style.",
+            targetSelector: null
+        });
+        plans.push({
+            stepNumber: 2,
+            totalSteps: 3,
+            instruction: "Set 'temperature' to 0.7 - 0.9.",
+            reassurance: "Higher temperature = more creativity.",
+            targetSelector: null
+        });
+        plans.push({
+            stepNumber: 3,
+            totalSteps: 3,
+            instruction: "Provide style guides in 'system' prompt.",
+            reassurance: "e.g., 'Write in the style of Hemingway'.",
+            targetSelector: null
+        });
+    }
+    // OPENAI / CODING PLANS (Specific)
+    else if (q.includes('coding') || q.includes('python') || (q.includes('code') && !q.includes('no code'))) {
+        plans.push({
+            stepNumber: 1,
+            totalSteps: 3,
+            instruction: "For coding, use 'gpt-4o' or 'o1-preview'.",
+            reassurance: "These (and o1-mini) are optimized for reasoning.",
+            targetSelector: null
+        });
+        plans.push({
+            stepNumber: 2,
+            totalSteps: 3,
+            instruction: "Install the library: 'pip install openai'",
+            reassurance: "Ensure you have Python 3.9+.",
+            targetSelector: null
+        });
+        plans.push({
+            stepNumber: 3,
+            totalSteps: 3,
+            instruction: "Use 'AsyncOpenAI' for better performance.",
+            reassurance: "See docs for async usage examples.",
+            targetSelector: null
+        });
     }
     // GITHUB PLANS
     else if (tool === 'GitHub') {
@@ -241,14 +404,31 @@ function generateOfflinePlan(tool, query) {
             plans.push({ stepNumber: 1, totalSteps: 1, instruction: "Check the GitHub navigation bar.", reassurance: "Most actions are there.", targetSelector: "header" });
         }
     }
+    // CONVEX PLANS
+    else if (tool === 'Convex') {
+        plans.push({
+            stepNumber: 1,
+            totalSteps: 2,
+            instruction: "Connection Failed: " + (errorMsg.slice(0, 50) || "Check Server"),
+            reassurance: "Ensure localhost:8000 is reachable.",
+            targetSelector: null
+        });
+        plans.push({
+            stepNumber: 2,
+            totalSteps: 2,
+            instruction: "Run 'python -m uvicorn server.api:app'",
+            reassurance: "Available in your ScrapeData folder.",
+            targetSelector: null
+        });
+    }
     // FALLBACK (Generic)
     else {
         plans.push({
             stepNumber: 1,
             totalSteps: 2,
-            instruction: "I'm in Offline Mode.",
-            reassurance: "Try asking: 'How to create a page'",
-            targetSelector: ".notion-sidebar-container"
+            instruction: "Brain not connected.",
+            reassurance: "Error: " + (errorMsg.slice(0, 30) || "Unknown"),
+            targetSelector: null
         });
         plans.push({
             stepNumber: 2,
@@ -267,12 +447,12 @@ async function showGuidancePrompt(tabId, analysis) {
     try {
         await ensureContentScriptInjected(tabId);
         await chrome.tabs.sendMessage(tabId, {
-            action: 'showGuidance',
+            action: 'toggleGuidance',
             step: {
                 stepNumber: 0,
                 totalSteps: 1,
                 instruction: `I see you are on ${analysis.tool}. How can I help?`,
-                reassurance: 'Offline Mode Ready'
+                reassurance: 'Online Mode Ready'
             }
         });
     } catch (e) { console.error(e); }

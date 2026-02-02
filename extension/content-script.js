@@ -27,6 +27,15 @@
         sendResponse({ success: true });
         break;
 
+      case 'toggleGuidance':
+        if (isActive) {
+          hideGuidanceOverlay();
+        } else {
+          showGuidanceOverlay(request.step);
+        }
+        sendResponse({ success: true });
+        break;
+
       case 'hideGuidance':
         hideGuidanceOverlay();
         sendResponse({ success: true });

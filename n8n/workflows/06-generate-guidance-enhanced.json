@@ -118,7 +118,7 @@
         },
         {
             "parameters": {
-                "jsCode": "// Parse GPT-4 response\nconst response = $input.item.json.choices[0].message.content;\n\n// Extract JSON from response\nlet jsonStr = response;\nif (response.includes('```json')) {\n  jsonStr = response.split('```json')[1].split('```')[0].trim();\n} else if (response.includes('```')) {\n  jsonStr = response.split('```')[1].split('```')[0].trim();\n}\n\ntry {\n  const steps = JSON.parse(jsonStr);\n  \n  // Ensure all steps have required fields\n  const formattedSteps = steps.map((step, index) => ({\n    stepNumber: index + 1,\n    totalSteps: steps.length,\n    instruction: step.instruction,\n    reassurance: step.reassurance || null,\n    targetSelector: step.targetElement || null,\n    expectedAction: step.action || null\n  }));\n  \n  return {\n    steps: formattedSteps,\n    totalSteps: formattedSteps.length,\n    success: true\n  };\n} catch (error) {\n  return {\n    steps: [],\n    totalSteps: 0,\n    success: false,\n    error: error.message,\n    rawResponse: response\n  };\n}"
+                "jsCode": "// Parse AI response (handles both standard OpenAI and n8n LangChain formats)\nconst content = $input.item.json.output || $input.item.json.text || ($input.item.json.choices && $input.item.json.choices[0].message.content) || $input.item.json.message?.content;\n\nif (!content) {\n  return { steps: [], success: false, error: \"No content received from AI\" };\n}\n\n// Extract JSON from response\nlet jsonStr = content;\nif (content.includes('```json')) {\n  jsonStr = content.split('```json')[1].split('```')[0].trim();\n} else if (content.includes('```')) {\n  jsonStr = content.split('```')[1].split('```')[0].trim();\n}\n\ntry {\n  const steps = JSON.parse(jsonStr);\n  \n  // Ensure all steps have required fields\n  const formattedSteps = steps.map((step, index) => ({\n    stepNumber: index + 1,\n    totalSteps: steps.length,\n    instruction: step.instruction,\n    reassurance: step.reassurance || null,\n    targetSelector: step.targetSelector || step.targetElement || null,\n    expectedAction: step.action || null\n  }));\n  \n  return {\n    steps: formattedSteps,\n    totalSteps: formattedSteps.length,\n    success: true\n  };\n} catch (error) {\n  return {\n    steps: [],\n    totalSteps: 0,\n    success: false, \n    error: error.message,\n    rawResponse: content\n  };\n}"
             },
             "id": "parse-procedure",
             "name": "Parse Procedure",
@@ -169,7 +169,7 @@
         {
             "parameters": {
                 "respondWith": "json",
-                "responseBody": "={{ {\n  success: true,\n  executionId: $json.id,\n  steps: $('Parse Procedure').item.json.steps,\n  totalSteps: $('Parse Procedure').item.json.totalSteps,\n  currentStep: $('Parse Procedure').item.json.steps[0],\n  message: `Generated ${$('Parse Procedure').item.json.totalSteps}-step procedure`\n} }}"
+                "responseBody": "={{ {\n  success: true,\n  executionId: $json.value?.id || $json.id,\n  steps: $('Parse Procedure').item.json.steps,\n  totalSteps: $('Parse Procedure').item.json.totalSteps,\n  currentStep: $('Parse Procedure').item.json.steps[0],\n  message: `Generated ${$('Parse Procedure').item.json.totalSteps}-step procedure`\n} }}"
             },
             "id": "respond-with-guidance",
             "name": "Respond with Guidance",

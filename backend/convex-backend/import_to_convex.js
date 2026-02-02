@@ -12,7 +12,7 @@ const { ConvexHttpClient } = require('convex/browser');
 const CONVEX_URL = 'https://abundant-porpoise-181.convex.cloud';
 
 // Path to exported knowledge
-const KNOWLEDGE_PATH = path.join(__dirname, '../../ScrapeData/knowledge_export.json');
+const KNOWLEDGE_PATH = '/Users/harshit/Downloads/ScrapeData/knowledge_export.json';
 
 async function importKnowledge() {
     console.log('='.repeat(60));

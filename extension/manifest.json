@@ -4,6 +4,7 @@
   "version": "2.0.0",
   "description": "Context-aware, on-demand guidance for any web tool",
   "action": {
+    "default_popup": "popup.html",
     "default_title": "Navigator - Click for guidance"
   },
   "background": {
@@ -32,6 +33,8 @@
   "host_permissions": [
     "https://abundant-porpoise-181.convex.cloud/*",
     "http://localhost:5678/*",
+    "http://localhost:8000/*",
+    "http://127.0.0.1:8000/*",
     "<all_urls>"
   ],
   "commands": {

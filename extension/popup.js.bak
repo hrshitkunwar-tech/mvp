@@ -1,0 +1,363 @@
+// Navigator Popup - Search Interface
+// Connects to Background Service Worker (Central Brain)
+
+const N8N_WEBHOOK = 'http://localhost:5678/webhook/navigator-screenshot';
+
+// DOM Elements
+const queryInput = document.getElementById('queryInput');
+const searchBtn = document.getElementById('searchBtn');
+const captureBtn = document.getElementById('captureBtn');
+const historyBtn = document.getElementById('historyBtn');
+const status = document.getElementById('status');
+const results = document.getElementById('results');
+
+// Event Listeners
+searchBtn.addEventListener('click', handleSearch);
+queryInput.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') handleSearch();
+});
+captureBtn.addEventListener('click', handleCapture);
+historyBtn.addEventListener('click', showHistory);
+
+/**
+ * Handle search query
+ * Delegates to Background Script which manages the Brain connection.
+ */
+async function handleSearch() {
+  const query = queryInput.value.trim();
+  searchBtn.disabled = true;
+
+  try {
+    // Get current tab info
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+    // Capture screenshot
+    const screenshot = await chrome.tabs.captureVisibleTab(null, {
+      format: 'jpeg',
+      quality: 50
+    });
+
+    // Send to n8n workflow
+    const response = await fetch(N8N_WEBHOOK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_id: `popup_${Date.now()}`,
+        timestamp: Date.now(),
+        screenshot_url: screenshot,
+        viewport: {
+          width: tab.width || 1920,
+          height: tab.height || 1080,
+          url: tab.url
+        },
+        query: query,
+        tool_detected: detectToolFromUrl(tab.url)
+      })
+    });
+
+    if (!response.ok) {
+      // Try to read any error text for better message
+      const errText = await response.text().catch(() => '');
+      console.warn('Non-OK response body:', errText);
+      throw new Error(`Backend returned ${response.status}`);
+    }
+
+    // Safely parse JSON; handle empty body
+    const text = await response.text();
+    let data = null;
+    if (text && text.trim()) {
+      try {
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        console.warn('Failed to parse JSON from backend:', parseErr, text);
+      }
+    } else {
+      console.warn('Backend returned empty body');
+    }
+
+    if (!data) {
+      // Backend returned empty but response was OK — treat as queued work
+      const sessionId = `popup_${Date.now()}`;
+      showStatus('✅ Request sent — guidance may arrive shortly', 'success');
+      displayQueuedNotice(query);
+      saveToHistory(query, { queued: true, sessionId });
+      // Start polling for results
+      pollForResults(sessionId, query);
+      return;
+    }
+
+    // Display results
+    displayGuidance(data, query);
+    showStatus('✅ Guidance ready!', 'success');
+
+    // Save to history
+    saveToHistory(query, data);
+
+  } catch (error) {
+    console.error('Search error:', error);
+    showStatus(`❌ Error: ${error.message}`, 'error');
+
+    // Show fallback guidance
+    displayFallbackGuidance(query);
+  } finally {
+    searchBtn.disabled = false;
+  }
+}
+
+/**
+ * Handle page capture (Analyze Page)
+ * Uses Vision to identifying the current tool.
+ */
+async function handleCapture() {
+  showStatus('📸 Analyzing Screen...', 'loading');
+  results.innerHTML = '';
+  captureBtn.disabled = true;
+
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+    const screenshot = await chrome.tabs.captureVisibleTab(null, {
+      format: 'jpeg',
+      quality: 50
+    });
+
+    const response = await fetch(N8N_WEBHOOK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_id: `capture_${Date.now()}`,
+        timestamp: Date.now(),
+        screenshot_url: screenshot,
+        viewport: {
+          width: tab.width || 1920,
+          height: tab.height || 1080,
+          url: tab.url
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      console.warn('Non-OK response body:', errText);
+      throw new Error(`Backend returned ${response.status}`);
+    }
+
+    const text = await response.text();
+    let data = null;
+    if (text && text.trim()) {
+      try { data = JSON.parse(text); } catch (e) { console.warn('Failed to parse capture JSON', e, text); }
+    } else {
+      console.warn('Backend returned empty body for capture');
+    }
+
+    if (!data) {
+      // Treat empty successful captures as queued
+      const sessionId = `capture_${Date.now()}`;
+      showStatus('✅ Capture received — analysis queued', 'success');
+      displayQueuedNotice('');
+      saveToHistory('capture', { queued: true, sessionId });
+      // Start polling for results
+      pollForResults(sessionId, 'capture');
+      return;
+    }
+
+    displayPageAnalysis(data);
+    showStatus('✅ Page analyzed!', 'success');
+
+  } catch (error) {
+    console.error('Capture error:', error);
+    showStatus(`❌ Error: ${error.message}`, 'error');
+  }
+  finally {
+    captureBtn.disabled = false;
+  }
+}
+
+/**
+ * Display guidance results
+ * Handles the "steps" format from background-enhanced.js
+ */
+function displayGuidance(data, query) {
+  results.innerHTML = '';
+
+  // Data structure from background: { guidance: { steps: [...] } }
+  const steps = data.guidance?.steps || [];
+
+  const card = document.createElement('div');
+  card.className = 'guidance-card';
+
+  if (steps.length > 0) {
+    const firstStep = steps[0];
+    card.innerHTML = `
+        <div class="step-number">🧭 Navigation Guide</div>
+        <div class="guidance-text">
+          <strong>Step 1 of ${steps.length}:</strong><br>
+          ${firstStep.instruction}
+          <br><br>
+          <div style="font-size: 0.9em; opacity: 0.8; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px;">
+            ${firstStep.reassurance || 'Follow the overlay on screen.'}
+          </div>
+        </div>
+      `;
+  } else {
+    // Logic for fallback or empty steps
+    card.innerHTML = `
+        <div class="step-number">💡 Quick Tip</div>
+        <div class="guidance-text">${generateFallbackText(query)}</div>
+      `;
+  }
+
+  results.appendChild(card);
+}
+
+// ... Helpers ...
+
+function showStatus(msg, type) {
+  status.textContent = msg;
+  status.className = `status ${type}`;
+  if (type === 'loading') {
+    status.style.display = 'block';
+  } else {
+    setTimeout(() => { status.style.display = 'none'; }, 3000);
+  }
+}
+
+function saveToHistory(query, data) {
+  const history = JSON.parse(localStorage.getItem('nav_history') || '[]');
+  history.unshift({ query, timestamp: Date.now() });
+  localStorage.setItem('nav_history', JSON.stringify(history.slice(0, 50)));
+}
+
+/**
+ * Detect tool from URL
+ */
+function detectToolFromUrl(url) {
+  if (!url) return 'Unknown';
+  if (url.includes('github.com')) return 'GitHub';
+  if (url.includes('convex.cloud') || url.includes('convex.dev')) return 'Convex';
+  if (url.includes('mail.google.com')) return 'Gmail';
+  if (url.includes('figma.com')) return 'Figma';
+  if (url.includes('notion.so')) return 'Notion';
+  if (url.includes('linear.app')) return 'Linear';
+  if (url.includes('slack.com')) return 'Slack';
+  return 'Unknown';
+}
+
+function showHistory() {
+  const history = JSON.parse(localStorage.getItem('nav_history') || '[]');
+  results.innerHTML = '';
+
+  if (history.length === 0) {
+    results.innerHTML = '<div class="guidance-text">No history yet.</div>';
+    return;
+  }
+
+  history.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'history-item'; // CSS assumed
+    div.innerText = `🕒 ${new Date(item.timestamp).toLocaleTimeString()} - ${item.query}`;
+    div.style.padding = '8px';
+    div.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+    div.style.cursor = 'pointer';
+    div.onclick = () => { queryInput.value = item.query; handleSearch(); };
+    results.appendChild(div);
+  });
+}
+
+function displayFallbackGuidance(query) {
+  const card = document.createElement('div');
+  card.className = 'guidance-card';
+  card.innerHTML = `
+      <div class="step-number">⚠️ Connection Issue</div>
+      <div class="guidance-text">
+        Could not connect to Brain.<br>
+        Trying local fallback...<br>
+        <strong>${generateFallbackText(query)}</strong>
+      </div>
+    `;
+  results.appendChild(card);
+}
+
+function generateFallbackText(query) {
+  const q = query.toLowerCase();
+  if (q.includes('create')) return "Look for a '+' button or 'New' button.";
+  if (q.includes('setting')) return "Check the top-right corner avatar or gear icon.";
+  return "Try exploring the sidebar menu.";
+}
+
+function displayQueuedNotice(query) {
+  results.innerHTML = '';
+  const card = document.createElement('div');
+  card.className = 'guidance-card';
+  card.innerHTML = `
+      <div class="step-number">⏳ Guidance Queued</div>
+      <div class="guidance-text">
+        Your request was received and queued for processing.<br>
+        If guidance becomes available it will appear here shortly.<br>
+        <strong>${generateFallbackText(query)}</strong>
+      </div>
+    `;
+  results.appendChild(card);
+}
+
+/**
+ * Poll n8n for execution results matching session_id
+ */
+async function pollForResults(sessionId, query, maxAttempts = 15) {
+  const pollInterval = 2000; // 2 seconds between polls
+  let attempts = 0;
+
+  const pollFn = async () => {
+    attempts++;
+    console.log(`[Poll ${attempts}/${maxAttempts}] Checking for session ${sessionId}`);
+
+    try {
+      // Query n8n API for recent executions
+      const resp = await fetch('http://localhost:5678/api/v1/executions', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!resp.ok) {
+        console.warn(`Poll API returned ${resp.status}, retrying...`);
+        if (attempts < maxAttempts) {
+          setTimeout(pollFn, pollInterval);
+        } else {
+          console.warn('Poll timeout; keeping queued notice');
+        }
+        return;
+      }
+
+      const execs = await resp.json();
+      const matching = execs.data?.find(e => e.data?.sessionId === sessionId || e.data?.session_id === sessionId);
+
+      if (matching && matching.data) {
+        console.log('✅ Found matching execution, displaying results');
+        const guidance = matching.data.guidance || matching.data.output?.guidance || {};
+        if (Object.keys(guidance).length > 0) {
+          displayGuidance(guidance, query);
+          showStatus('✅ Guidance ready!', 'success');
+        } else {
+          console.warn('Execution found but no guidance data; retrying...');
+          if (attempts < maxAttempts) {
+            setTimeout(pollFn, pollInterval);
+          }
+        }
+      } else {
+        // Not found yet; retry
+        if (attempts < maxAttempts) {
+          setTimeout(pollFn, pollInterval);
+        } else {
+          console.warn('Poll timeout; keeping queued notice');
+        }
+      }
+    } catch (err) {
+      console.warn('Poll error:', err);
+      if (attempts < maxAttempts) {
+        setTimeout(pollFn, pollInterval);
+      }
+    }
+  };
+
+  pollFn();
+}

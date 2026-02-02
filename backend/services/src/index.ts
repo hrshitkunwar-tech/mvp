@@ -65,5 +65,20 @@ app.post('/interpret', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`✅ Vision Service running on http://localhost:${PORT}`);
   console.log(`📡 Provider: ${visionProvider}`);
-  console.log(`🔑 API Key configured: ${process.env.OPENAI_API_KEY ? 'Yes' : 'No'}`);
+
+  // Check API key based on provider
+  let apiKeyConfigured = false;
+  if (visionProvider === 'openai') {
+    apiKeyConfigured = !!process.env.OPENAI_API_KEY;
+  } else if (visionProvider === 'anthropic') {
+    apiKeyConfigured = !!process.env.ANTHROPIC_API_KEY;
+  } else if (visionProvider === 'google') {
+    apiKeyConfigured = !!process.env.GOOGLE_API_KEY;
+  } else if (visionProvider === 'ollama') {
+    apiKeyConfigured = true; // Ollama doesn't need an API key
+    const ollamaUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+    console.log(`🖥️  Ollama URL: ${ollamaUrl}`);
+  }
+
+  console.log(`🔑 API Key configured: ${apiKeyConfigured ? 'Yes' : 'No'}`);
 });
