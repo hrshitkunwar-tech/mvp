@@ -97,8 +97,18 @@ async function handleSearch() {
 
   } catch (error) {
     console.error('Search error:', error);
-    showStatus(`❌ ${error.message}`, 'error');
-    displayFallbackGuidance(query);
+    
+    // Handle specific error types
+    if (error.message.includes('504')) {
+      showStatus('⏳ Vision service is processing... this may take a moment', 'loading');
+      displayQueuedNotice(query);
+    } else if (error.message.includes('502') || error.message.includes('Backend')) {
+      showStatus('❌ Connection failed - is Vision Proxy running on port 5680?', 'error');
+      displayFallbackGuidance(query);
+    } else {
+      showStatus(`❌ ${error.message}`, 'error');
+      displayFallbackGuidance(query);
+    }
   } finally {
     searchBtn.disabled = false;
   }
