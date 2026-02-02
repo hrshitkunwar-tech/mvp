@@ -12,7 +12,7 @@
     },
     {
       "parameters": {
-        "functionCode": "const event = $input.item.json;\nconsole.log('Webhook received:', event);\n\nreturn {\n  session_id: event.session_id,\n  timestamp: event.timestamp,\n  screenshot_url: event.screenshot_url,\n  viewport: event.viewport,\n  query: event.query\n};"
+        "functionCode": "const event = $input.item.json;\nconsole.log('Webhook received:', event);\n\n// Add missing ViewportMetadata fields\nconst viewport = {\n  width: event.viewport.width,\n  height: event.viewport.height,\n  device_pixel_ratio: event.viewport.device_pixel_ratio || 1,\n  url: event.viewport.url || '',\n  title: event.viewport.title || '',\n  domain: event.viewport.domain || new URL(event.viewport.url || '').hostname || ''\n};\n\nreturn {\n  session_id: event.session_id,\n  timestamp: event.timestamp,\n  screenshot_url: event.screenshot_url,\n  viewport: viewport,\n  query: event.query\n};"
       },
       "name": "Extract Event Data",
       "type": "n8n-nodes-base.function",
