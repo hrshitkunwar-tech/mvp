@@ -64,7 +64,7 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                             "viewport": viewport,
                             "query": query
                         },
-                        timeout=60  # Increased from 30 to 60 seconds for Ollama processing
+                        timeout=10  # Reduced to 10 seconds to return fallback faster
                     )
                     
                     if resp.status_code == 200:
