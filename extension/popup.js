@@ -213,8 +213,17 @@ function displayQueuedNotice(label) {
   card.innerHTML = `
     <div class="step-number">⏳ Processing</div>
     <div class="guidance-text">
-      ${label} is being processed.<br>
-      Results will appear here when ready.
+      Your request for "<strong>${label}</strong>" has been sent to the server.<br>
+      <br>
+      <strong>What's happening:</strong>
+      <ul style="margin: 8px 0; padding-left: 20px; font-size: 0.9em; line-height: 1.6;">
+        <li>Vision AI is analyzing your screen</li>
+        <li>Generating step-by-step guidance</li>
+        <li>Building interactive overlays</li>
+      </ul>
+      <strong>Estimated time:</strong> 5-10 seconds
+      <br><br>
+      <strong style="font-size: 0.85em; opacity: 0.7;">Tip:</strong> Results will update here automatically when ready, or check the n8n dashboard at <code style="background: rgba(255,255,255,0.1); padding: 2px 4px; border-radius: 3px;">localhost:5678</code>
     </div>
   `;
   results.appendChild(card);
@@ -322,62 +331,11 @@ function showHistory() {
 }
 
 /**
- * Poll n8n for execution results
+ * Placeholder for polling (currently disabled)
+ * n8n API requires auth; will implement callback mechanism in next phase
  */
-async function pollForResults(sessionId, label, attempts = 0) {
-  if (attempts >= MAX_POLL_ATTEMPTS) {
-    console.warn('Poll timeout; keeping queued notice');
-    showStatus('⏳ Still processing, check back later', 'loading');
-    return;
-  }
-
-  setTimeout(async () => {
-    try {
-      console.log(`[Poll ${attempts + 1}/${MAX_POLL_ATTEMPTS}] Looking for ${sessionId}`);
-
-      const resp = await fetch('http://localhost:5678/api/v1/executions', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
-      });
-
-      if (!resp.ok) {
-        console.warn(`API returned ${resp.status}, retrying...`);
-        pollForResults(sessionId, label, attempts + 1);
-        return;
-      }
-
-      const text = await resp.text();
-      let execs = null;
-
-      try {
-        execs = JSON.parse(text);
-      } catch (e) {
-        console.warn('Failed to parse executions API response:', e);
-        pollForResults(sessionId, label, attempts + 1);
-        return;
-      }
-
-      // Find matching execution
-      const matching = execs.data?.find(
-        (e) =>
-          e.data?.session_id === sessionId ||
-          e.data?.sessionId === sessionId
-      );
-
-      if (matching && matching.data?.guidance) {
-        console.log('✅ Found result, displaying');
-        displayGuidance(matching.data.guidance, label);
-        showStatus('✅ Guidance ready!', 'success');
-      } else if (matching) {
-        console.warn('Execution found but no guidance; retrying...');
-        pollForResults(sessionId, label, attempts + 1);
-      } else {
-        console.log('Execution not found yet; retrying...');
-        pollForResults(sessionId, label, attempts + 1);
-      }
-    } catch (err) {
-      console.warn('Poll error:', err);
-      pollForResults(sessionId, label, attempts + 1);
-    }
-  }, POLL_INTERVAL);
+function pollForResults(sessionId, label, attempts = 0) {
+  console.log(`[ℹ️] Request queued: ${sessionId}`);
+  console.log(`[ℹ️] Check n8n dashboard at http://localhost:5678 for execution status`);
+  // Future: Implement callback webhook from n8n to popup instead of polling
 }
