@@ -101,7 +101,7 @@ async function handleSearch() {
     // Handle specific error types
     if (error.message.includes('504')) {
       showStatus('⏳ Vision service is processing... this may take a moment', 'loading');
-      displayQueuedNotice(query);
+      displayFallbackGuidance(query);
     } else if (error.message.includes('502') || error.message.includes('Backend')) {
       showStatus('❌ Connection failed - is Vision Proxy running on port 5680?', 'error');
       displayFallbackGuidance(query);
@@ -248,11 +248,13 @@ function displayFallbackGuidance(query) {
   const card = document.createElement('div');
   card.className = 'guidance-card';
   card.innerHTML = `
-    <div class="step-number">⚠️ Connection Issue</div>
+    <div class="step-number">💡 Quick Tip</div>
     <div class="guidance-text">
-      Could not connect to guidance service.<br>
-      Trying local fallback...<br>
       <strong>${generateFallbackText(query)}</strong>
+      <br><br>
+      <div style="font-size: 0.85em; opacity: 0.7; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px;">
+        <strong>Note:</strong> Vision AI is warming up. Real guidance coming soon!
+      </div>
     </div>
   `;
   results.appendChild(card);
