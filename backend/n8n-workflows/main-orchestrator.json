@@ -7,7 +7,8 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [250, 300],
-      "webhookId": "navigator-screenshot-event"
+      "webhookId": "navigator-screenshot",
+      "webhookPath": "navigator-screenshot"
     },
     {
       "parameters": {
@@ -22,25 +23,15 @@
       "parameters": {
         "url": "={{$env.VISION_SERVICE_URL}}/interpret",
         "method": "POST",
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "screenshot_url",
-              "value": "={{$json.screenshot_url}}"
-            },
-            {
-              "name": "viewport",
-              "value": "={{$json.viewport}}"
-            }
-          ]
-        },
+        "contentType": "application/json",
+        "body": "={\"screenshot_url\": $json.screenshot_url, \"viewport\": $json.viewport, \"query\": $json.query}",
         "options": {
           "timeout": 30000
         }
       },
       "name": "Vision Interpretation",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 1,
+      "typeVersion": 4,
       "position": [650, 300]
     },
     {
@@ -56,18 +47,15 @@
       "parameters": {
         "url": "={{$env.CONVEX_URL}}/api/mutations/ui_states/store",
         "method": "POST",
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "ui_state",
-              "value": "={{$json.ui_state}}"
-            }
-          ]
+        "contentType": "application/json",
+        "body": "={\"ui_state\": $json.ui_state}",
+        "options": {
+          "timeout": 30000
         }
       },
       "name": "Store UI State in Convex",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 1,
+      "typeVersion": 4,
       "position": [1050, 300]
     },
     {
@@ -105,6 +93,16 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [1450, 400]
+    },
+    {
+      "parameters": {
+        "responseCode": 200,
+        "responseData": "={\"status\": \"queued\", \"session_id\": $json.session_id, \"message\": \"Your guidance request is being processed. Results will be available shortly.\"}"
+      },
+      "name": "Send Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1650, 300]
     }
   ],
   "connections": {
@@ -128,6 +126,12 @@
         [{ "node": "Continue Procedure Execution", "type": "main", "index": 0 }],
         [{ "node": "Start Intent Inference", "type": "main", "index": 0 }]
       ]
+    },
+    "Continue Procedure Execution": {
+      "main": [[{ "node": "Send Response", "type": "main", "index": 0 }]]
+    },
+    "Start Intent Inference": {
+      "main": [[{ "node": "Send Response", "type": "main", "index": 0 }]]
     }
   },
   "settings": {
