@@ -82,9 +82,10 @@ async function handleSearch() {
 
     // If no data returned, treat as queued and poll for results
     if (!data) {
-      showStatus('✅ Request sent, checking for results...', 'success');
+      showStatus('✅ Request sent...', 'success');
       displayQueuedNotice(query);
       saveToHistory(query, { queued: true, sessionId });
+      // Start polling (currently disabled due to auth)
       pollForResults(sessionId, query);
       return;
     }
@@ -152,9 +153,10 @@ async function handleCapture() {
     }
 
     if (!data) {
-      showStatus('✅ Capture queued, checking for results...', 'success');
+      showStatus('✅ Capture sent...', 'success');
       displayQueuedNotice('Page Analysis');
       saveToHistory('capture', { queued: true, sessionId });
+      // Start polling (currently disabled due to auth)
       pollForResults(sessionId, 'capture');
       return;
     }
