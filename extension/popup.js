@@ -1,7 +1,7 @@
 // Navigator Popup - Search Interface
 // Connects to n8n Orchestration Backend
 
-const N8N_WEBHOOK = 'http://localhost:5678/webhook/navigator-screenshot';
+const N8N_WEBHOOK = 'http://localhost:5680/webhook/navigator-screenshot';
 const POLL_INTERVAL = 2000; // 2 seconds
 const MAX_POLL_ATTEMPTS = 15; // ~30 seconds max
 
