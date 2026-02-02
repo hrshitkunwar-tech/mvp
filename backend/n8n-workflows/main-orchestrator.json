@@ -12,7 +12,7 @@
     },
     {
       "parameters": {
-        "functionCode": "// Extract event data\nconst event = $input.item.json;\n\nreturn {\n  session_id: event.session_id,\n  timestamp: event.timestamp,\n  screenshot_url: event.screenshot_url,\n  viewport: event.viewport\n};"
+        "functionCode": "const event = $input.item.json;\n\nreturn [\n  {\n    json: {\n      session_id: event.session_id,\n      timestamp: event.timestamp,\n      screenshot_url: event.screenshot_url,\n      viewport: event.viewport,\n      query: event.query\n    }\n  }\n];"
       },
       "name": "Extract Event Data",
       "type": "n8n-nodes-base.function",
@@ -24,7 +24,7 @@
         "url": "={{$env.VISION_SERVICE_URL}}/interpret",
         "method": "POST",
         "contentType": "application/json",
-        "body": "={\"screenshot_url\": $json.screenshot_url, \"viewport\": $json.viewport}",
+        "body": "={{ { screenshot_url: $json.screenshot_url, viewport: $json.viewport, query: $json.query } }}",
         "options": {
           "timeout": 60000
         }
@@ -36,7 +36,7 @@
     },
     {
       "parameters": {
-        "functionCode": "// Store UI State in Convex\nconst uiState = {\n  session_id: $json.session_id,\n  timestamp: $json.timestamp,\n  viewport: $json.viewport,\n  interpretation: $json.interpretation,\n  raw_screenshot_url: $json.screenshot_url\n};\n\nreturn { ui_state: uiState };"
+        "functionCode": "const uiState = {\n  session_id: $json.session_id,\n  timestamp: $json.timestamp,\n  viewport: $json.viewport,\n  interpretation: $json.interpretation,\n  raw_screenshot_url: $json.screenshot_url\n};\n\nreturn [ { json: { ui_state: uiState } } ];"
       },
       "name": "Build UI State",
       "type": "n8n-nodes-base.function",
@@ -48,7 +48,7 @@
         "url": "={{$env.CONVEX_URL}}/api/mutations/ui_states/store",
         "method": "POST",
         "contentType": "application/json",
-        "body": "={\"ui_state\": $json.ui_state}",
+        "body": "={{ { ui_state: $json.ui_state } }}",
         "options": {
           "timeout": 30000
         }
@@ -97,7 +97,7 @@
     {
       "parameters": {
         "responseCode": 200,
-        "responseData": "={\"status\": \"queued\", \"session_id\": $json.session_id, \"message\": \"Your guidance request is being processed. Results will be available shortly.\"}"
+        "responseData": "={{ { status: 'queued', session_id: $json.session_id, message: 'Your guidance request is being processed. Results will be available shortly.' } }}"
       },
       "name": "Send Response",
       "type": "n8n-nodes-base.respondToWebhook",
