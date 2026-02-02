@@ -12,7 +12,7 @@
     },
     {
       "parameters": {
-        "functionCode": "const event = $input.item.json;\n\nreturn [{\n  json: {\n    session_id: event.session_id,\n    timestamp: event.timestamp,\n    screenshot_url: event.screenshot_url,\n    viewport: event.viewport,\n    query: event.query\n  }\n}];"
+        "functionCode": "const event = $input.item.json;\nconsole.log('Webhook received:', event);\n\nreturn {\n  session_id: event.session_id,\n  timestamp: event.timestamp,\n  screenshot_url: event.screenshot_url,\n  viewport: event.viewport,\n  query: event.query\n};"
       },
       "name": "Extract Event Data",
       "type": "n8n-nodes-base.function",
@@ -36,7 +36,7 @@
     },
     {
       "parameters": {
-        "functionCode": "const uiState = {\n  session_id: $json.session_id,\n  timestamp: $json.timestamp,\n  viewport: $json.viewport,\n  interpretation: $json.interpretation,\n  raw_screenshot_url: $json.screenshot_url\n};\n\nreturn [{\n  json: { ui_state: uiState }\n}];"
+        "functionCode": "const uiState = {\n  session_id: $json.session_id,\n  timestamp: $json.timestamp,\n  viewport: $json.viewport,\n  interpretation: $json.interpretation,\n  raw_screenshot_url: $json.screenshot_url\n};\n\nreturn { ui_state: uiState };"
       },
       "name": "Build UI State",
       "type": "n8n-nodes-base.function",
