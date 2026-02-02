@@ -24,7 +24,7 @@
         "url": "={{$env.VISION_SERVICE_URL}}/interpret",
         "method": "POST",
         "contentType": "application/json",
-        "body": "={\"screenshot_url\": {{$json.screenshot_url}}, \"viewport\": {{$json.viewport}}}",
+        "body": "={\"screenshot_url\": $json.screenshot_url, \"viewport\": $json.viewport}",
         "options": {
           "timeout": 60000
         }
