@@ -24,9 +24,9 @@
         "url": "={{$env.VISION_SERVICE_URL}}/interpret",
         "method": "POST",
         "contentType": "application/json",
-        "body": "={\"screenshot_url\": $json.screenshot_url, \"viewport\": $json.viewport, \"query\": $json.query}",
+        "body": "={\"screenshot_url\": {{$json.screenshot_url}}, \"viewport\": {{$json.viewport}}}",
         "options": {
-          "timeout": 30000
+          "timeout": 60000
         }
       },
       "name": "Vision Interpretation",
