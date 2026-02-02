@@ -24,7 +24,7 @@
         "url": "={{$env.VISION_SERVICE_URL}}/interpret",
         "method": "POST",
         "contentType": "application/json",
-        "body": "={{ { screenshot_url: $json.screenshot_url, viewport: $json.viewport, query: $json.query } }}",
+        "body": "={{JSON.stringify({ screenshot_url: $json.screenshot_url, viewport: $json.viewport, query: $json.query })}}",
         "options": {
           "timeout": 10000
         }
@@ -48,7 +48,7 @@
         "url": "={{$env.CONVEX_URL}}/api/mutations/ui_states/store",
         "method": "POST",
         "contentType": "application/json",
-        "body": "={{ { ui_state: $json.ui_state } }}",
+        "body": "={{JSON.stringify({ ui_state: $json.ui_state })}}",
         "options": {
           "timeout": 30000
         }
@@ -97,7 +97,7 @@
     {
       "parameters": {
         "responseCode": 200,
-        "responseData": "={{ { status: 'queued', session_id: $json.session_id, message: 'Your guidance request is being processed. Results will be available shortly.' } }}"
+        "responseData": "={{JSON.stringify({ status: 'queued', session_id: $json.session_id, message: 'Your guidance request is being processed. Results will be available shortly.' })}}"
       },
       "name": "Send Response",
       "type": "n8n-nodes-base.respondToWebhook",
