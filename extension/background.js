@@ -1,9 +1,157 @@
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === "TAKE_SCREENSHOT") {
-    chrome.tabs.captureVisibleTab(null, { format: "png" }, (dataUrl) => {
-      sendResponse({ image: dataUrl });
-    });
-    return true;
+/**
+ * Navigator Background Service Worker (VERSION 2.0.4 - UNIFIED BRIDGE)
+ * -------------------------------------------------------------
+ * FIXED PROPERLY: This version NEVER calls Ollama (11434) directly.
+ * It routes EVERYTHING through the ScrapeData API (8000).
+ * This eliminates the Ollama 403 Forbidden / CORS errors.
+ */
+
+console.log("Navigator Background 2.0.4: Unified Bridge Online");
+
+var tabContexts = {};
+
+chrome.runtime.onInstalled.addListener(function () {
+  if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
+    chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
   }
 });
-console.log("Background service worker loaded");
+
+chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+  if (request.action === 'CONTEXT_UPDATED' && sender.tab) {
+    var tid = sender.tab.id;
+    updateMemoryContext(tid, request.payload);
+    sendResponse({ status: 'ok' });
+  } else if (request.action === 'GET_DEBUG_CONTEXT') {
+    sendResponse({ context: tabContexts[request.tabId] });
+    return true;
+  }
+  return true;
+});
+
+function updateMemoryContext(tabId, payload) {
+  var existing = tabContexts[tabId] || {
+    meta: payload.meta,
+    content: { headings: [], interaction: [], text: "", blocks: [] }
+  };
+
+  if (payload.meta.isTop && (!existing.meta || (payload.meta.timestamp - existing.meta.timestamp > 3000))) {
+    existing = payload;
+  } else {
+    existing.content.headings = dedupe(existing.content.headings.concat(payload.content.headings || []), 'text');
+    existing.content.interaction = dedupe(existing.content.interaction.concat(payload.content.interaction || []), 'text');
+
+    if (existing.content.text.indexOf(payload.content.text.substring(0, 50)) === -1) {
+      existing.content.text += "\n" + payload.content.text;
+      existing.content.blocks = (existing.content.blocks || []).concat(payload.content.blocks || []);
+    }
+  }
+
+  tabContexts[tabId] = existing;
+}
+
+function dedupe(arr, key) {
+  var seen = {};
+  return arr.filter(function (item) {
+    if (!item) return false;
+    var val = item[key];
+    if (seen[val]) return false;
+    seen[val] = true;
+    return true;
+  });
+}
+
+chrome.runtime.onConnect.addListener(function (port) {
+  if (port.name === 'sidepanel-connection') {
+    port.onMessage.addListener(function (msg) {
+      if (msg.action === 'ASK_LLM') handleAskLLM(port, msg.query, msg.tabId);
+    });
+  }
+});
+
+function handleAskLLM(port, query, tabId) {
+  var context = tabContexts[tabId];
+  console.log("Asking Unified Brain (Stream):", query);
+
+  // STEP 1: Tool Detection
+  fetch('http://127.0.0.1:8000/detect-tool', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      url: context ? context.meta.url : "",
+      title: context ? context.meta.title : ""
+    })
+  })
+    .then(function (res) {
+      if (!res.ok) return { detected: false };
+      return res.json();
+    })
+    .catch(function () { return { detected: false }; })
+    .then(function (detectData) {
+      var toolName = detectData.detected ? detectData.tool_name : null;
+
+      // STEP 2: Unified Chat Stream
+      return fetch('http://127.0.0.1:8000/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: query,
+          tool_name: toolName,
+          url: context ? context.meta.url : "Browser Tab",
+          context_text: context ? context.content.text.substring(0, 15000) : "No text."
+        })
+      });
+    })
+    .then(function (response) {
+      if (!response.ok) {
+        response.text().then(function (t) {
+          port.postMessage({ type: 'error', text: "Brain Error (" + response.status + "): " + t });
+        });
+        return;
+      }
+
+      // STREAM READER
+      var reader = response.body.getReader();
+      var decoder = new TextDecoder();
+      var buffer = "";
+
+      function read() {
+        reader.read().then(function (result) {
+          if (result.done) {
+            port.postMessage({ type: 'done' });
+            return;
+          }
+          var chunk = decoder.decode(result.value, { stream: true });
+          buffer += chunk;
+
+          var lines = buffer.split('\n');
+          buffer = lines.pop(); // Keep incomplete line in buffer
+
+          for (var i = 0; i < lines.length; i++) {
+            var line = lines[i].trim();
+            if (!line) continue;
+            try {
+              var json = JSON.parse(line);
+
+              if (json.error) {
+                port.postMessage({ type: 'error', text: json.error });
+                return;
+              }
+
+              if (json.message && json.message.content) {
+                port.postMessage({ type: 'token', text: json.message.content });
+              }
+            } catch (e) {
+              // Ignore parse errors for partial json
+            }
+          }
+          read();
+        }).catch(function (e) {
+          port.postMessage({ type: 'error', text: "Stream Loss: " + e.message });
+        });
+      }
+      read();
+    })
+    .catch(function (err) {
+      port.postMessage({ type: 'error', text: "Connection Failed: " + err.message });
+    });
+}

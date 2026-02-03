@@ -1,16 +1,32 @@
 {
   "manifest_version": 3,
-  "name": "Navigator",
-  "version": "2.0.0",
-  "description": "Context-aware, on-demand guidance for any web tool",
-  "action": {
-    "default_popup": "popup.html",
-    "default_title": "Navigator - Click for guidance"
+  "name": "Navigator: Contextual AI",
+  "version": "2.0.4",
+  "description": "Browser-native AI assistant (Unified Brain Edition)",
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
   },
   "background": {
-    "service_worker": "background-enhanced.js",
-    "type": "module"
+    "service_worker": "background.js"
   },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "action": {
+    "default_title": "Open Navigator"
+  },
+  "permissions": [
+    "sidePanel",
+    "storage",
+    "activeTab",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
   "content_scripts": [
     {
       "matches": [
@@ -20,35 +36,10 @@
         "content-script.js"
       ],
       "run_at": "document_idle",
-      "all_frames": false
+      "all_frames": true
     }
   ],
-  "permissions": [
-    "tabs",
-    "activeTab",
-    "storage",
-    "scripting",
-    "notifications"
-  ],
-  "host_permissions": [
-    "https://abundant-porpoise-181.convex.cloud/*",
-    "http://localhost:5678/*",
-    "http://localhost:8000/*",
-    "http://127.0.0.1:8000/*",
-    "<all_urls>"
-  ],
-  "commands": {
-    "activate-guidance": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+N",
-        "mac": "Command+Shift+N"
-      },
-      "description": "Activate Navigator guidance"
-    }
-  },
-  "icons": {
-    "16": "icon.png",
-    "48": "icon.png",
-    "128": "icon.png"
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'"
   }
 }
