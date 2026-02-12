@@ -6,3 +6,14 @@ build
 .n8n
 *.log
 coverage
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
