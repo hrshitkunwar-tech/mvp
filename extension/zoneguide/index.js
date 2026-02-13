@@ -38,10 +38,24 @@
 
     state.initialized = true;
 
-    // Listen for messages from background/sidepanel
-    chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
-      handleMessage(message, sender, sendResponse);
-      return true; // Keep channel open for async responses
+    // Listen for messages via window.postMessage (from content-script bridge)
+    window.addEventListener('message', function(event) {
+      // Only accept messages from same origin
+      if (event.source !== window) return;
+
+      var message = event.data;
+      if (!message || !message.type || !message.type.startsWith('ZONEGUIDE_')) return;
+
+      console.log('[ZoneGuide] Received postMessage:', message.type);
+
+      // Call handleMessage with mock sender and response callback
+      handleMessage(message, {}, function(response) {
+        // Send response back to content script
+        window.postMessage({
+          type: 'ZONEGUIDE_RESPONSE',
+          payload: response
+        }, '*');
+      });
     });
 
     console.log('[ZoneGuide] Module initialized v' + state.version);

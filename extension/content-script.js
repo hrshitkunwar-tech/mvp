@@ -72,6 +72,26 @@ ContentAgent.prototype.init = function () {
         return true;
     });
 
+    // NEW: Relay ZONEGUIDE messages from background to page context
+    chrome.runtime.onMessage.addListener(function (req, sender, sendResponse) {
+        if (req.type && req.type.startsWith('ZONEGUIDE_')) {
+            // Forward message to page context via window.postMessage
+            window.postMessage(req, '*');
+
+            // Listen for response from page
+            var responseHandler = function(event) {
+                if (event.source !== window) return;
+                if (event.data && event.data.type === 'ZONEGUIDE_RESPONSE') {
+                    window.removeEventListener('message', responseHandler);
+                    sendResponse(event.data.payload);
+                }
+            };
+            window.addEventListener('message', responseHandler);
+
+            return true; // Keep channel open for async response
+        }
+    });
+
     console.log('[Navigator] Quantum Sensor Online (' + (window.top === window ? 'Top' : 'Frame') + '). ID:', this.contextId);
 };
 
