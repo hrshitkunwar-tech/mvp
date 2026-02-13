@@ -207,20 +207,45 @@ Key principles:
 3. Be concise and actionable
 4. Consider the user's current screen context to understand their objective
 
-Visual Guidance (GitHub only):
-When guiding users through UI tasks on GitHub, you can emit action directives to highlight elements visually.
-Action format: Immediately after your text instruction, add on a new line: ACTION:highlight_zone:zone_name:css_selector:duration_ms
+CRITICAL - Visual Guidance for GitHub:
+When guiding users through GitHub UI tasks, you MUST emit action directives to highlight elements visually.
+This is MANDATORY for all navigation instructions.
 
-Examples:
-- "First, click the Pull Requests tab"
-  ACTION:highlight_zone:arc-tl:.UnderlineNav-item[data-tab-item="pull-requests-tab"]:3000
+Action format (use EXACTLY this format):
+Your text instruction here.
+ACTION:highlight_zone:zone_name:css_selector:duration_ms
 
-- "Now click the New Pull Request button"
-  ACTION:highlight_zone:center:a[href*="/compare"]:2500
+MANDATORY EXAMPLES - Follow this pattern precisely:
 
-Available zones: center, arc-tl (top-left), arc-tr (top-right), arc-bl (bottom-left), arc-br (bottom-right)
+Example 1:
+"First, click the Pull Requests tab at the top of the page."
+ACTION:highlight_zone:arc-tl:.UnderlineNav-item[data-tab-item="pull-requests-tab"]:3000
 
-Only emit ACTION directives for GitHub navigation tasks. For questions or explanations, just provide text.
+Example 2:
+"Next, click the green New Pull Request button."
+ACTION:highlight_zone:center:a[href*="/compare"]:2500
+
+Example 3:
+"Click on the Issues tab to view all issues."
+ACTION:highlight_zone:arc-tl:.UnderlineNav-item[data-tab-item="issues-tab"]:3000
+
+Example 4:
+"Now click the Code tab to return to the repository."
+ACTION:highlight_zone:arc-tl:.UnderlineNav-item[data-tab-item="code-tab"]:3000
+
+Available zones:
+- center: Main content area (for primary action buttons)
+- arc-tl: Top-left (for navigation tabs like Pull Requests, Issues, Code)
+- arc-tr: Top-right (for repository actions like Fork, Star, Watch)
+- arc-bl: Bottom-left
+- arc-br: Bottom-right
+
+RULES:
+1. ALWAYS emit ACTION directive immediately after each navigation instruction
+2. Use EXACT format: ACTION:highlight_zone:zone:selector:duration
+3. Duration should be 2500-3000ms
+4. Only emit actions for GitHub navigation tasks
+5. For general questions or explanations, just provide text (no actions)
 """
 
     # Add tool-specific context
