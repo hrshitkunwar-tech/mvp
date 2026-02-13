@@ -34,15 +34,24 @@
       ],
       "js": [
         "content-script.js",
-        "github-selectors.js",
-        "zoneguide/zones.js",
-        "zoneguide/index.js"
+        "github-selectors.js"
       ],
       "css": [
         "zoneguide/styles.css"
       ],
       "run_at": "document_idle",
       "all_frames": true
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "zoneguide/zones.js",
+        "zoneguide/index.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_idle"
     }
   ],
   "commands": {
