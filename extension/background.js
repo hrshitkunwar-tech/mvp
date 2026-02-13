@@ -10,6 +10,20 @@ console.log("Navigator Background 2.0.4: Unified Bridge Online");
 
 var tabContexts = {};
 
+// Helper function to safely post messages to port
+function safePostMessage(port, message) {
+  try {
+    if (port && port.postMessage) {
+      port.postMessage(message);
+      return true;
+    }
+  } catch (e) {
+    console.warn("Port disconnected, cannot send message:", e.message);
+    return false;
+  }
+  return false;
+}
+
 chrome.runtime.onInstalled.addListener(function () {
   if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
     chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
@@ -104,7 +118,7 @@ function handleAskLLM(port, query, tabId) {
     .then(function (response) {
       if (!response.ok) {
         response.text().then(function (t) {
-          port.postMessage({ type: 'error', text: "Brain Error (" + response.status + "): " + t });
+          safePostMessage(port, { type: 'error', text: "Brain Error (" + response.status + "): " + t });
         });
         return;
       }
@@ -117,7 +131,7 @@ function handleAskLLM(port, query, tabId) {
       function read() {
         reader.read().then(function (result) {
           if (result.done) {
-            port.postMessage({ type: 'done' });
+            safePostMessage(port, { type: 'done' });
             return;
           }
           var chunk = decoder.decode(result.value, { stream: true });
@@ -133,12 +147,12 @@ function handleAskLLM(port, query, tabId) {
               var json = JSON.parse(line);
 
               if (json.error) {
-                port.postMessage({ type: 'error', text: json.error });
+                safePostMessage(port, { type: 'error', text: json.error });
                 return;
               }
 
               if (json.message && json.message.content) {
-                port.postMessage({ type: 'token', text: json.message.content });
+                safePostMessage(port, { type: 'token', text: json.message.content });
               }
             } catch (e) {
               // Ignore parse errors for partial json
@@ -146,12 +160,12 @@ function handleAskLLM(port, query, tabId) {
           }
           read();
         }).catch(function (e) {
-          port.postMessage({ type: 'error', text: "Stream Loss: " + e.message });
+          safePostMessage(port, { type: 'error', text: "Stream Loss: " + e.message });
         });
       }
       read();
     })
     .catch(function (err) {
-      port.postMessage({ type: 'error', text: "Connection Failed: " + err.message });
+      safePostMessage(port, { type: 'error', text: "Connection Failed: " + err.message });
     });
 }
