@@ -1,0 +1,19 @@
+{
+  "name": "@navigator/n8n-orchestrator",
+  "version": "1.0.0",
+  "description": "n8n orchestration service for Navigator",
+  "scripts": {
+    "start": "n8n start",
+    "dev": "n8n start",
+    "import": "node scripts/import-workflows.js",
+    "export": "n8n export:workflow --all --output=./workflows/backup",
+    "tunnel": "n8n start --tunnel"
+  },
+  "dependencies": {
+    "n8n": "^1.21.0",
+    "dotenv": "^16.4.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0"
+  }
+}

@@ -1,0 +1,273 @@
+{
+  "id": "proc_001_create_github_repo",
+  "name": "Create New GitHub Repository",
+  "description": "Step-by-step procedure to create a new repository on GitHub",
+  "product": "github",
+  "version": "1.0.0",
+  "intent_patterns": [
+    "create repository",
+    "new repo",
+    "create new project on github",
+    "start a repository"
+  ],
+  "required_context": ["authenticated_github_user"],
+  "steps": [
+    {
+      "step_id": "step_001",
+      "step_number": 1,
+      "preconditions": [
+        {
+          "type": "page_type",
+          "description": "Must be on GitHub dashboard or any GitHub page",
+          "expected_page_type": "dashboard",
+          "required": false
+        },
+        {
+          "type": "element_present",
+          "description": "New repository button must be visible",
+          "element_selector": {
+            "by_label": "New",
+            "by_type": "button",
+            "by_role": "button",
+            "allow_partial_match": true,
+            "label_similarity_threshold": 0.8
+          },
+          "required": true
+        }
+      ],
+      "guidance": {
+        "instruction": "Click the 'New' button to start creating a repository",
+        "visual_cue": {
+          "type": "highlight",
+          "target_element": {
+            "by_label": "New",
+            "by_type": "button"
+          }
+        },
+        "tips": [
+          "Look for the green 'New' button in the top navigation or repositories section"
+        ],
+        "estimated_duration_seconds": 5
+      },
+      "target": {
+        "type": "element",
+        "element_selector": {
+          "by_label": "New",
+          "by_type": "button"
+        },
+        "interaction_type": "click"
+      },
+      "success_conditions": [
+        {
+          "type": "page_changed",
+          "description": "Should navigate to new repository creation page",
+          "expected_url_pattern": "github\\.com/new",
+          "timeout_seconds": 10,
+          "required": true
+        },
+        {
+          "type": "element_present",
+          "description": "Repository name input should be visible",
+          "element_selector": {
+            "by_label": "Repository name",
+            "by_type": "input"
+          },
+          "timeout_seconds": 5,
+          "required": true
+        }
+      ],
+      "recovery": {
+        "max_retries": 2,
+        "retry_delay_seconds": 2,
+        "on_failure": [
+          {
+            "type": "retry",
+            "description": "Retry clicking the New button"
+          },
+          {
+            "type": "navigate_back",
+            "description": "Go back and try again",
+            "navigation_url": "https://github.com"
+          }
+        ],
+        "fallback": "manual_intervention",
+        "manual_intervention_message": "Could not find the 'New' button. Please navigate to https://github.com/new manually."
+      },
+      "next_step_id": "step_002"
+    },
+    {
+      "step_id": "step_002",
+      "step_number": 2,
+      "preconditions": [
+        {
+          "type": "page_type",
+          "description": "Must be on repository creation page",
+          "expected_page_type": "form",
+          "required": true
+        },
+        {
+          "type": "element_present",
+          "description": "Repository name input must be present",
+          "element_selector": {
+            "by_label": "Repository name",
+            "by_type": "input"
+          },
+          "required": true
+        }
+      ],
+      "guidance": {
+        "instruction": "Enter a name for your repository",
+        "visual_cue": {
+          "type": "highlight",
+          "target_element": {
+            "by_label": "Repository name",
+            "by_type": "input"
+          }
+        },
+        "tips": [
+          "Repository names must be lowercase",
+          "Use hyphens instead of spaces",
+          "Keep it short and descriptive"
+        ],
+        "warnings": [
+          "Repository name must be unique in your account"
+        ],
+        "estimated_duration_seconds": 15
+      },
+      "target": {
+        "type": "element",
+        "element_selector": {
+          "by_label": "Repository name",
+          "by_type": "input"
+        },
+        "interaction_type": "type",
+        "interaction_value": "{user_input:repository_name}"
+      },
+      "success_conditions": [
+        {
+          "type": "element_state",
+          "description": "Repository name field should have value",
+          "element_selector": {
+            "by_label": "Repository name",
+            "by_type": "input"
+          },
+          "expected_state": {
+            "value": "{user_input:repository_name}"
+          },
+          "timeout_seconds": 5,
+          "required": true
+        },
+        {
+          "type": "element_absent",
+          "description": "No error message should appear",
+          "element_selector": {
+            "by_role": "alert",
+            "by_attributes": {
+              "aria-live": "polite"
+            }
+          },
+          "timeout_seconds": 2,
+          "required": false
+        }
+      ],
+      "recovery": {
+        "max_retries": 3,
+        "retry_delay_seconds": 1,
+        "on_failure": [
+          {
+            "type": "clear_state",
+            "description": "Clear the input and try again"
+          }
+        ],
+        "fallback": "manual_intervention",
+        "manual_intervention_message": "Could not enter repository name. Please type it manually."
+      },
+      "next_step_id": "step_003"
+    },
+    {
+      "step_id": "step_003",
+      "step_number": 3,
+      "preconditions": [
+        {
+          "type": "element_state",
+          "description": "Repository name must be filled",
+          "element_selector": {
+            "by_label": "Repository name",
+            "by_type": "input"
+          },
+          "expected_state": {
+            "value": "{user_input:repository_name}"
+          },
+          "required": true
+        },
+        {
+          "type": "element_present",
+          "description": "Create repository button must be present",
+          "element_selector": {
+            "by_label": "Create repository",
+            "by_type": "button"
+          },
+          "required": true
+        }
+      ],
+      "guidance": {
+        "instruction": "Click 'Create repository' to finish",
+        "visual_cue": {
+          "type": "highlight",
+          "target_element": {
+            "by_label": "Create repository",
+            "by_type": "button"
+          }
+        },
+        "tips": [
+          "You can customize other settings later",
+          "Private repositories require a paid plan"
+        ],
+        "estimated_duration_seconds": 3
+      },
+      "target": {
+        "type": "element",
+        "element_selector": {
+          "by_label": "Create repository",
+          "by_type": "button"
+        },
+        "interaction_type": "click"
+      },
+      "success_conditions": [
+        {
+          "type": "page_changed",
+          "description": "Should navigate to the new repository page",
+          "expected_url_pattern": "github\\.com/[^/]+/{user_input:repository_name}",
+          "timeout_seconds": 15,
+          "required": true
+        },
+        {
+          "type": "element_present",
+          "description": "Repository header should be visible",
+          "element_selector": {
+            "by_type": "heading",
+            "by_label": "{user_input:repository_name}"
+          },
+          "timeout_seconds": 10,
+          "required": true
+        }
+      ],
+      "recovery": {
+        "max_retries": 2,
+        "retry_delay_seconds": 3,
+        "on_failure": [
+          {
+            "type": "retry",
+            "description": "Retry clicking Create repository"
+          }
+        ],
+        "fallback": "manual_intervention",
+        "manual_intervention_message": "Could not create repository. Please check for error messages and try manually."
+      }
+    }
+  ],
+  "created_at": 1706140800000,
+  "updated_at": 1706140800000,
+  "author": "navigator_team",
+  "status": "active"
+}

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navigator</title>
+    <link rel="stylesheet" href="sidepanel.css">
+</head>
+
+<body>
+
+    <header>
+        <div class="logo">🧭 Navigator</div>
+        <div class="actions">
+            <button id="btn-debug" aria-label="Debug" title="Toggle Context Inspector">🐞</button>
+            <button id="btn-settings" aria-label="Settings">⚙️</button>
+        </div>
+    </header>
+
+    <div id="settings-panel" class="hidden">
+        <h3>Configuration</h3>
+        <p class="hint">Navigator is now powered by Unified Brain Bridge.</p>
+        <button id="btn-save-key">CONNECTED TO PORT 8000 (v2.0.4)</button>
+    </div>
+
+    <div id="debug-panel" class="hidden">
+        <div class="debug-section">
+            <h4>Meta <div style="display:flex; gap:4px;"><button class="btn-inspect" id="btn-toggle-heatmap"
+                        title="Toggle DOM Heatmap">🔥 MAP</button><button class="btn-inspect" id="btn-force-scan">FORCE
+                        SCAN</button></div>
+            </h4>
+            <div class="debug-row"><span class="debug-label">ID:</span> <span class="debug-value" id="dbg-id">-</span>
+            </div>
+            <div class="debug-row"><span class="debug-label">Tab:</span> <span class="debug-value" id="dbg-tab">-</span>
+            </div>
+            <div class="debug-row"><span class="debug-label">Size:</span> <span class="debug-value"
+                    id="dbg-tokens">0</span></div>
+        </div>
+        <div class="debug-section">
+            <h4>Structure</h4>
+            <div id="dbg-structure" class="json-view">Loading...</div>
+        </div>
+        <div class="debug-section">
+            <h4>Map</h4>
+            <div id="dbg-interaction" class="json-view">[]</div>
+        </div>
+    </div>
+
+    <div id="chat-container">
+        <div class="message ai">
+            Hello! I'm reading the page. Ask me anything.
+        </div>
+    </div>
+
+    <div id="input-area">
+        <div id="context-indicator">Unified Bridge Active</div>
+        <div class="input-wrapper">
+            <textarea id="user-input" placeholder="Ask about this page..." rows="1"></textarea>
+            <button id="btn-send">➤</button>
+        </div>
+    </div>
+
+    <script src="sidepanel.js"></script>
+</body>
+
+</html>

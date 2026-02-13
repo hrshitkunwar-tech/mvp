@@ -1,0 +1,231 @@
+{
+  "name": "Intent Inference and Procedure Selection",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Start",
+      "type": "n8n-nodes-base.start",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.CONVEX_URL}}/api/queries/ui_states/getRecentBySession",
+        "method": "GET",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "session_id",
+              "value": "={{$json.session_id}}"
+            },
+            {
+              "name": "limit",
+              "value": "10"
+            }
+          ]
+        }
+      },
+      "name": "Get Recent UI States",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.AGENT_SERVICE_URL}}/agents/intent-inference",
+        "method": "POST",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "current_state",
+              "value": "={{$json.current_state}}"
+            },
+            {
+              "name": "previous_states",
+              "value": "={{$json.previous_states}}"
+            },
+            {
+              "name": "session_context",
+              "value": "={{$json.session_context}}"
+            }
+          ]
+        }
+      },
+      "name": "Intent Inference Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json.output.inferred_intent.confidence}}",
+              "operation": "larger",
+              "value2": 0.7
+            }
+          ]
+        }
+      },
+      "name": "Check Intent Confidence",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.CONVEX_URL}}/api/queries/procedures/findByIntent",
+        "method": "POST",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "intent",
+              "value": "={{$json.output.inferred_intent}}"
+            }
+          ]
+        }
+      },
+      "name": "Find Matching Procedures",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.AGENT_SERVICE_URL}}/agents/procedure-reasoning",
+        "method": "POST",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "intent",
+              "value": "={{$json.intent}}"
+            },
+            {
+              "name": "current_state",
+              "value": "={{$json.current_state}}"
+            },
+            {
+              "name": "available_procedures",
+              "value": "={{$json.procedures}}"
+            }
+          ]
+        }
+      },
+      "name": "Procedure Reasoning Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.output.should_abort}}",
+              "value2": false
+            }
+          ]
+        }
+      },
+      "name": "Check Should Proceed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1450, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.CONVEX_URL}}/api/mutations/executions/create",
+        "method": "POST",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "procedure_id",
+              "value": "={{$json.output.recommended_procedure.procedure.id}}"
+            },
+            {
+              "name": "session_id",
+              "value": "={{$json.session_id}}"
+            },
+            {
+              "name": "intent",
+              "value": "={{$json.intent}}"
+            }
+          ]
+        }
+      },
+      "name": "Create Procedure Execution",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1650, 150]
+    },
+    {
+      "parameters": {
+        "workflowId": "={{$env.PROCEDURE_EXECUTION_WORKFLOW_ID}}",
+        "data": "={{$json}}"
+      },
+      "name": "Start Procedure Execution",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1850, 150]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Log abort decision\nreturn {\n  action: 'abort',\n  reason: $json.output.abort_reason,\n  session_id: $json.session_id\n};"
+      },
+      "name": "Log Abort Decision",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1650, 250]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Log low confidence intent\nreturn {\n  action: 'no_action',\n  reason: 'Low intent confidence',\n  confidence: $json.output.inferred_intent.confidence,\n  session_id: $json.session_id\n};"
+      },
+      "name": "Log Low Confidence",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1050, 400]
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [[{ "node": "Get Recent UI States", "type": "main", "index": 0 }]]
+    },
+    "Get Recent UI States": {
+      "main": [[{ "node": "Intent Inference Agent", "type": "main", "index": 0 }]]
+    },
+    "Intent Inference Agent": {
+      "main": [[{ "node": "Check Intent Confidence", "type": "main", "index": 0 }]]
+    },
+    "Check Intent Confidence": {
+      "main": [
+        [{ "node": "Find Matching Procedures", "type": "main", "index": 0 }],
+        [{ "node": "Log Low Confidence", "type": "main", "index": 0 }]
+      ]
+    },
+    "Find Matching Procedures": {
+      "main": [[{ "node": "Procedure Reasoning Agent", "type": "main", "index": 0 }]]
+    },
+    "Procedure Reasoning Agent": {
+      "main": [[{ "node": "Check Should Proceed", "type": "main", "index": 0 }]]
+    },
+    "Check Should Proceed": {
+      "main": [
+        [{ "node": "Create Procedure Execution", "type": "main", "index": 0 }],
+        [{ "node": "Log Abort Decision", "type": "main", "index": 0 }]
+      ]
+    },
+    "Create Procedure Execution": {
+      "main": [[{ "node": "Start Procedure Execution", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-01-24T00:00:00.000Z",
+  "versionId": "1"
+}
