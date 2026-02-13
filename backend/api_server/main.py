@@ -297,10 +297,11 @@ async def stream_ollama_response(prompt: str, is_chat: bool = True):
                                 data = json.loads(line)
 
                                 # Check if message contains ACTION directive
-                                if data.get("message") and data["message"].get("content"):
-                                    content = data["message"]["content"]
+                                # Handle both normal mode (content) and thinking mode (thinking)
+                                if data.get("message"):
+                                    content = data["message"].get("content") or data["message"].get("thinking") or ""
 
-                                    if "ACTION:" in content:
+                                    if content and "ACTION:" in content:
                                         # Split text and action
                                         parts = content.split("ACTION:")
                                         text_part = parts[0].strip()
@@ -327,8 +328,11 @@ async def stream_ollama_response(prompt: str, is_chat: bool = True):
                                                     # Invalid action format, skip
                                                     pass
                                     else:
-                                        # Normal text chunk, forward as-is
-                                        yield json.dumps(data) + "\n"
+                                        # Normal text chunk - convert thinking to content for compatibility
+                                        if content:
+                                            yield json.dumps({"message": {"content": content}}) + "\n"
+                                        else:
+                                            yield json.dumps(data) + "\n"
                                 else:
                                     # No message content, forward as-is (done, etc.)
                                     yield json.dumps(data) + "\n"
