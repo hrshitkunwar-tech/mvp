@@ -1,0 +1,386 @@
+/**
+ * ZoneGuide Visual Styles
+ *
+ * All styles use 'zg-' prefix to avoid conflicts with host pages.
+ * Uses only GPU-accelerated properties (transform, opacity) for smooth animations.
+ * All overlays have pointer-events: none except interactive UI elements.
+ */
+
+/* ========== ZONE OVERLAY (Progressive Disclosure Phase 1) ========== */
+
+.zg-zone-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2147483646; /* Max z-index minus 1 (tooltips go on top) */
+  pointer-events: none; /* CRITICAL: Don't intercept any clicks */
+  opacity: 0;
+  animation: zg-zone-appear 0.4s ease-out forwards;
+}
+
+@keyframes zg-zone-appear {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.zg-zone-fade-out {
+  animation: zg-zone-disappear 0.5s ease-in forwards;
+}
+
+@keyframes zg-zone-disappear {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+/* Zone-specific radial gradients (orange heatmap) */
+
+.zg-zone-center {
+  background: radial-gradient(
+    ellipse at center center,
+    rgba(255, 107, 53, 0.30) 0%,
+    rgba(255, 107, 53, 0.10) 30%,
+    transparent 60%
+  );
+}
+
+.zg-zone-arc-tl {
+  background: radial-gradient(
+    ellipse at top left,
+    rgba(255, 107, 53, 0.35) 0%,
+    rgba(255, 107, 53, 0.10) 40%,
+    transparent 70%
+  );
+}
+
+.zg-zone-arc-tr {
+  background: radial-gradient(
+    ellipse at top right,
+    rgba(255, 107, 53, 0.35) 0%,
+    rgba(255, 107, 53, 0.10) 40%,
+    transparent 70%
+  );
+}
+
+.zg-zone-arc-bl {
+  background: radial-gradient(
+    ellipse at bottom left,
+    rgba(255, 107, 53, 0.35) 0%,
+    rgba(255, 107, 53, 0.10) 40%,
+    transparent 70%
+  );
+}
+
+.zg-zone-arc-br {
+  background: radial-gradient(
+    ellipse at bottom right,
+    rgba(255, 107, 53, 0.35) 0%,
+    rgba(255, 107, 53, 0.10) 40%,
+    transparent 70%
+  );
+}
+
+
+/* ========== ELEMENT HIGHLIGHT (Progressive Disclosure Phase 2) ========== */
+
+.zg-element-highlight {
+  position: fixed; /* Fixed to viewport, not document */
+  z-index: 2147483647; /* Maximum z-index */
+  pointer-events: none;
+  border: 3px solid rgba(255, 107, 53, 0.9);
+  border-radius: 6px;
+  box-shadow: 0 0 0 0 rgba(255, 107, 53, 0.4);
+  animation: zg-pulse 1.5s ease-in-out infinite;
+  will-change: transform, box-shadow; /* Optimize for animation */
+}
+
+@keyframes zg-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255, 107, 53, 0.4);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 20px 8px rgba(255, 107, 53, 0.15);
+    transform: scale(1.02);
+  }
+}
+
+
+/* ========== TOOLTIP ========== */
+
+.zg-tooltip {
+  position: fixed;
+  z-index: 2147483647;
+  pointer-events: none;
+  background: #1a1a2e;
+  color: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  padding: 10px 16px;
+  border-radius: 8px;
+  max-width: 300px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transform: translateY(8px);
+  animation: zg-tooltip-enter 0.3s ease-out 0.2s forwards;
+}
+
+/* Tooltip arrow */
+.zg-tooltip::after {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 20px;
+  width: 12px;
+  height: 12px;
+  background: #1a1a2e;
+  transform: rotate(45deg);
+}
+
+/* Tooltip positioned above element */
+.zg-tooltip-above::after {
+  top: auto;
+  bottom: -6px;
+}
+
+@keyframes zg-tooltip-enter {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+/* ========== STEP INDICATOR (Top-right corner) ========== */
+
+.zg-step-indicator {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 2147483647;
+  pointer-events: auto; /* This one IS clickable (skip/exit buttons) */
+  background: #1a1a2e;
+  color: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 13px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  opacity: 0;
+  animation: zg-tooltip-enter 0.3s ease-out forwards;
+}
+
+.zg-step-indicator-text {
+  font-weight: 500;
+}
+
+.zg-step-indicator-progress {
+  width: 80px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.zg-step-indicator-fill {
+  height: 100%;
+  background: #ff6b35;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.zg-step-indicator-close {
+  cursor: pointer;
+  opacity: 0.6;
+  font-size: 16px;
+  padding: 4px;
+  transition: opacity 0.2s;
+}
+
+.zg-step-indicator-close:hover {
+  opacity: 1;
+}
+
+
+/* ========== SUCCESS ANIMATION ========== */
+
+.zg-success-flash {
+  position: fixed;
+  z-index: 2147483647;
+  pointer-events: none;
+  border: 3px solid #22c55e;
+  border-radius: 6px;
+  animation: zg-success 0.6s ease-out forwards;
+}
+
+@keyframes zg-success {
+  0%   {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5);
+  }
+  50%  {
+    opacity: 0.8;
+    transform: scale(1.05);
+    box-shadow: 0 0 20px 10px rgba(34, 197, 94, 0.3);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.1);
+    box-shadow: 0 0 30px 15px rgba(34, 197, 94, 0);
+  }
+}
+
+
+/* ========== WRONG CLICK NUDGE (Shake Animation) ========== */
+
+.zg-nudge {
+  animation: zg-shake 0.5s ease-in-out;
+}
+
+@keyframes zg-shake {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(-5px); }
+  50%      { transform: translateX(5px); }
+  75%      { transform: translateX(-5px); }
+}
+
+.zg-nudge-message {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2147483647;
+  background: #fbbf24;
+  color: #78350f;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  padding: 12px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  animation: zg-nudge-appear 0.3s ease-out, zg-nudge-disappear 0.3s ease-in 2s forwards;
+}
+
+@keyframes zg-nudge-appear {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes zg-nudge-disappear {
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+}
+
+
+/* ========== RECORDING BADGE (Shows when recording is active) ========== */
+
+.zg-recording-badge {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 2147483647;
+  background: #dc2626;
+  color: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+  border-radius: 6px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.zg-recording-badge-dot {
+  width: 8px;
+  height: 8px;
+  background: #ffffff;
+  border-radius: 50%;
+  animation: zg-blink 1s ease-in-out infinite;
+}
+
+@keyframes zg-blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.3; }
+}
+
+
+/* ========== COMPLETION MESSAGE ========== */
+
+.zg-completion-message {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2147483647;
+  background: #1a1a2e;
+  color: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  text-align: center;
+  padding: 32px 40px;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+  animation: zg-tooltip-enter 0.4s ease-out;
+}
+
+.zg-completion-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.zg-completion-subtitle {
+  font-size: 14px;
+  color: #9ca3af;
+  margin-bottom: 24px;
+}
+
+.zg-completion-button {
+  background: #ff6b35;
+  color: #ffffff;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.zg-completion-button:hover {
+  background: #ff8555;
+}
+
+
+/* ========== UTILITY CLASSES ========== */
+
+.zg-hidden {
+  display: none !important;
+}
+
+.zg-fade-in {
+  animation: zg-tooltip-enter 0.3s ease-out forwards;
+}
+
+.zg-fade-out {
+  animation: zg-zone-disappear 0.3s ease-in forwards;
+}
