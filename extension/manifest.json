@@ -34,6 +34,7 @@
       ],
       "js": [
         "content-script.js",
+        "github-selectors.js",
         "zoneguide/zones.js",
         "zoneguide/index.js"
       ],

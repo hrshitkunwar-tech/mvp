@@ -67,10 +67,48 @@
         break;
 
       case 'ZONEGUIDE_SHOW_ZONE':
-        // Test command for Phase 1
         if (message.payload && message.payload.zone) {
-          zones.showZoneHeatmap(message.payload.zone, message.payload.duration || 1500);
-          sendResponse({ success: true });
+          var zone = message.payload.zone;
+          var duration = message.payload.duration || 2500;
+          var selector = message.payload.selector;
+
+          // If selector provided, try to highlight specific element
+          if (selector) {
+            try {
+              var element = document.querySelector(selector);
+
+              if (element) {
+                // Scroll element into view if needed
+                if (!zones.isElementInViewport(element)) {
+                  zones.scrollToElement(element).then(function() {
+                    // Show zone overlay after scroll
+                    zones.showZoneHeatmap(zone, duration);
+                    // Add element pulse effect
+                    element.classList.add('zg-element-pulse');
+                    setTimeout(function() {
+                      element.classList.remove('zg-element-pulse');
+                    }, duration);
+                  });
+                } else {
+                  // Element already visible
+                  zones.showZoneHeatmap(zone, duration);
+                  element.classList.add('zg-element-pulse');
+                  setTimeout(function() {
+                    element.classList.remove('zg-element-pulse');
+                  }, duration);
+                }
+
+                sendResponse({ success: true, found_element: true });
+                break;
+              }
+            } catch (e) {
+              console.warn('[ZoneGuide] Selector failed:', selector, e);
+            }
+          }
+
+          // Fallback: just show zone overlay
+          zones.showZoneHeatmap(zone, duration);
+          sendResponse({ success: true, found_element: false });
         } else {
           sendResponse({ success: false, error: 'Missing zone parameter' });
         }

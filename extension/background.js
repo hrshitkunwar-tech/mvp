@@ -151,8 +151,19 @@ function handleAskLLM(port, query, tabId) {
                 return;
               }
 
+              // Handle text messages
               if (json.message && json.message.content) {
                 safePostMessage(port, { type: 'token', text: json.message.content });
+              }
+
+              // Handle action directives (NEW)
+              if (json.action) {
+                handleAction(json.action, tabId);
+              }
+
+              // Handle completion
+              if (json.done) {
+                safePostMessage(port, { type: 'done' });
               }
             } catch (e) {
               // Ignore parse errors for partial json
@@ -168,4 +179,32 @@ function handleAskLLM(port, query, tabId) {
     .catch(function (err) {
       safePostMessage(port, { type: 'error', text: "Connection Failed: " + err.message });
     });
+}
+
+/**
+ * Handle action directives from LLM stream
+ * @param {Object} action - Action object with type, zone, selector, duration
+ * @param {number} tabId - Target tab ID
+ */
+function handleAction(action, tabId) {
+  if (!action || !action.type) return;
+
+  console.log('[Navigator] Executing action:', action.type, 'in zone:', action.zone);
+
+  if (action.type === 'highlight_zone') {
+    chrome.tabs.sendMessage(tabId, {
+      type: 'ZONEGUIDE_SHOW_ZONE',
+      payload: {
+        zone: action.zone,
+        duration: action.duration || 2500,
+        selector: action.selector || null
+      }
+    }, function(response) {
+      if (chrome.runtime.lastError) {
+        console.warn('[Navigator] Action failed:', chrome.runtime.lastError.message);
+      } else {
+        console.log('[Navigator] Action executed:', response);
+      }
+    });
+  }
 }

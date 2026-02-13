@@ -206,6 +206,21 @@ Key principles:
 2. If you don't see relevant information, say so clearly
 3. Be concise and actionable
 4. Consider the user's current screen context to understand their objective
+
+Visual Guidance (GitHub only):
+When guiding users through UI tasks on GitHub, you can emit action directives to highlight elements visually.
+Action format: Immediately after your text instruction, add on a new line: ACTION:highlight_zone:zone_name:css_selector:duration_ms
+
+Examples:
+- "First, click the Pull Requests tab"
+  ACTION:highlight_zone:arc-tl:.UnderlineNav-item[data-tab-item="pull-requests-tab"]:3000
+
+- "Now click the New Pull Request button"
+  ACTION:highlight_zone:center:a[href*="/compare"]:2500
+
+Available zones: center, arc-tl (top-left), arc-tr (top-right), arc-bl (bottom-left), arc-br (bottom-right)
+
+Only emit ACTION directives for GitHub navigation tasks. For questions or explanations, just provide text.
 """
 
     # Add tool-specific context
@@ -255,8 +270,43 @@ async def stream_ollama_response(prompt: str, is_chat: bool = True):
                         if line.strip():
                             try:
                                 data = json.loads(line)
-                                # Forward the Ollama response format
-                                yield json.dumps(data) + "\n"
+
+                                # Check if message contains ACTION directive
+                                if data.get("message") and data["message"].get("content"):
+                                    content = data["message"]["content"]
+
+                                    if "ACTION:" in content:
+                                        # Split text and action
+                                        parts = content.split("ACTION:")
+                                        text_part = parts[0].strip()
+                                        action_part = parts[1].strip() if len(parts) > 1 else ""
+
+                                        # Send text first (if any)
+                                        if text_part:
+                                            yield json.dumps({"message": {"content": text_part}}) + "\n"
+
+                                        # Parse and send action
+                                        if action_part:
+                                            action_tokens = action_part.split(":")
+                                            if len(action_tokens) >= 4:
+                                                try:
+                                                    yield json.dumps({
+                                                        "action": {
+                                                            "type": action_tokens[0],  # e.g., "highlight_zone"
+                                                            "zone": action_tokens[1],   # e.g., "arc-tl"
+                                                            "selector": action_tokens[2], # e.g., ".repo-nav a"
+                                                            "duration": int(action_tokens[3])  # e.g., 3000
+                                                        }
+                                                    }) + "\n"
+                                                except (ValueError, IndexError):
+                                                    # Invalid action format, skip
+                                                    pass
+                                    else:
+                                        # Normal text chunk, forward as-is
+                                        yield json.dumps(data) + "\n"
+                                else:
+                                    # No message content, forward as-is (done, etc.)
+                                    yield json.dumps(data) + "\n"
                             except json.JSONDecodeError:
                                 continue
             else:

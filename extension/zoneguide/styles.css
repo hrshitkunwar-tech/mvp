@@ -384,3 +384,28 @@
 .zg-fade-out {
   animation: zg-zone-disappear 0.3s ease-in forwards;
 }
+
+/**
+ * Element-specific highlighting (AI-powered visual guidance)
+ * Pulsing orange outline for buttons/links
+ */
+.zg-element-pulse {
+  animation: zg-pulse 1.5s ease-in-out infinite !important;
+  outline: 3px solid rgba(255, 140, 0, 0.8) !important;
+  outline-offset: 4px !important;
+  box-shadow: 0 0 0 4px rgba(255, 140, 0, 0.3) !important;
+  border-radius: 4px !important;
+  position: relative !important;
+  z-index: 999999 !important;
+}
+
+@keyframes zg-pulse {
+  0%, 100% {
+    outline-color: rgba(255, 140, 0, 0.8);
+    box-shadow: 0 0 0 4px rgba(255, 140, 0, 0.3);
+  }
+  50% {
+    outline-color: rgba(255, 180, 0, 1);
+    box-shadow: 0 0 0 8px rgba(255, 180, 0, 0.5);
+  }
+}
