@@ -192,19 +192,44 @@ function handleAction(action, tabId) {
   console.log('[Navigator] Executing action:', action.type, 'in zone:', action.zone);
 
   if (action.type === 'highlight_zone') {
-    chrome.tabs.sendMessage(tabId, {
-      type: 'ZONEGUIDE_SHOW_ZONE',
-      payload: {
-        zone: action.zone,
-        duration: action.duration || 2500,
-        selector: action.selector || null
-      }
-    }, function(response) {
-      if (chrome.runtime.lastError) {
-        console.warn('[Navigator] Action failed:', chrome.runtime.lastError.message);
+    // CRITICAL: Verify tabId is valid before sending, fallback to active tab if needed
+    chrome.tabs.get(tabId, function(tab) {
+      if (chrome.runtime.lastError || !tab) {
+        // TabId is invalid (closed/navigated) - fallback to active tab
+        console.warn('[Navigator] Invalid tabId, using active tab');
+        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+          if (tabs[0]) {
+            sendActionToTab(tabs[0].id, action);
+          } else {
+            console.error('[Navigator] No active tab found');
+          }
+        });
       } else {
-        console.log('[Navigator] Action executed:', response);
+        // TabId is valid - use it
+        sendActionToTab(tabId, action);
       }
     });
   }
+}
+
+/**
+ * Send action to specific tab
+ * @param {number} tabId - Target tab ID (must be valid)
+ * @param {Object} action - Action object
+ */
+function sendActionToTab(tabId, action) {
+  chrome.tabs.sendMessage(tabId, {
+    type: 'ZONEGUIDE_SHOW_ZONE',
+    payload: {
+      zone: action.zone,
+      duration: action.duration || 2500,
+      selector: action.selector || null
+    }
+  }, function(response) {
+    if (chrome.runtime.lastError) {
+      console.error('[Navigator] ✗ Action failed:', chrome.runtime.lastError.message);
+    } else {
+      console.log('[Navigator] ✓ Action executed successfully:', response);
+    }
+  });
 }

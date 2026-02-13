@@ -190,23 +190,8 @@ async def query_convex_knowledge(tool_name: str, query: str, limit: int = 5):
         print(f"Error querying Convex scrapedata: {e}")
         return []
 
-def build_rag_prompt(query: str, tool_name: Optional[str], context_text: str, knowledge_chunks: list):
-    """
-    Builds the augmented prompt for Ollama with:
-    - User query
-    - Page context (UI elements, text)
-    - Retrieved knowledge from database
-    """
-
-    # Base system prompt
-    system = """You are Navigator, a contextual AI assistant that helps users understand and navigate tools.
-
-Key principles:
-1. Ground answers in the provided page context and knowledge base
-2. If you don't see relevant information, say so clearly
-3. Be concise and actionable
-4. Consider the user's current screen context to understand their objective
-
+# ACTION INSTRUCTIONS - Reusable constant for all prompt paths
+ACTION_INSTRUCTIONS = """
 CRITICAL - Visual Guidance for GitHub:
 When guiding users through GitHub UI tasks, you MUST emit action directives to highlight elements visually.
 This is MANDATORY for all navigation instructions.
@@ -246,6 +231,26 @@ RULES:
 3. Duration should be 2500-3000ms
 4. Only emit actions for GitHub navigation tasks
 5. For general questions or explanations, just provide text (no actions)
+"""
+
+def build_rag_prompt(query: str, tool_name: Optional[str], context_text: str, knowledge_chunks: list):
+    """
+    Builds the augmented prompt for Ollama with:
+    - User query
+    - Page context (UI elements, text)
+    - Retrieved knowledge from database
+    """
+
+    # Base system prompt with ACTION instructions
+    system = f"""You are Navigator, a contextual AI assistant that helps users understand and navigate tools.
+
+Key principles:
+1. Ground answers in the provided page context and knowledge base
+2. If you don't see relevant information, say so clearly
+3. Be concise and actionable
+4. Consider the user's current screen context to understand their objective
+
+{ACTION_INSTRUCTIONS}
 """
 
     # Add tool-specific context
@@ -311,22 +316,42 @@ async def stream_ollama_response(prompt: str, is_chat: bool = True):
                                         if text_part:
                                             yield json.dumps({"message": {"content": text_part}}) + "\n"
 
-                                        # Parse and send action
+                                        # Parse and send action - ROBUST VERSION
                                         if action_part:
-                                            action_tokens = action_part.split(":")
-                                            if len(action_tokens) >= 4:
-                                                try:
+                                            try:
+                                                # Split into max 4 parts: type:zone:selector:duration
+                                                # maxsplit=3 preserves colons in the selector (3rd part)
+                                                action_tokens = action_part.split(":", 3)
+
+                                                if len(action_tokens) >= 4:
+                                                    action_type = action_tokens[0].strip()
+                                                    zone = action_tokens[1].strip()
+                                                    selector = action_tokens[2].strip()
+                                                    duration_str = action_tokens[3].strip()
+
+                                                    # Extract duration (might have extra text after number)
+                                                    import re
+                                                    duration_match = re.match(r'(\d+)', duration_str)
+                                                    duration = int(duration_match.group(1)) if duration_match else 2500
+
+                                                    # Log successful parse for debugging
+                                                    selector_preview = selector[:50] + "..." if len(selector) > 50 else selector
+                                                    print(f"[ACTION] Parsed: type={action_type}, zone={zone}, selector={selector_preview}, duration={duration}")
+
                                                     yield json.dumps({
                                                         "action": {
-                                                            "type": action_tokens[0],  # e.g., "highlight_zone"
-                                                            "zone": action_tokens[1],   # e.g., "arc-tl"
-                                                            "selector": action_tokens[2], # e.g., ".repo-nav a"
-                                                            "duration": int(action_tokens[3])  # e.g., 3000
+                                                            "type": action_type,
+                                                            "zone": zone,
+                                                            "selector": selector,
+                                                            "duration": duration
                                                         }
                                                     }) + "\n"
-                                                except (ValueError, IndexError):
-                                                    # Invalid action format, skip
-                                                    pass
+                                                else:
+                                                    # Log invalid format for debugging
+                                                    print(f"[ACTION] Invalid format - expected 4 parts, got {len(action_tokens)}: {action_part[:100]}")
+                                            except Exception as e:
+                                                # CRITICAL: Log parse failures for debugging (no more silent drops!)
+                                                print(f"[ACTION] Parse error: {e} | Raw: {action_part[:100]}")
                                     else:
                                         # Normal text chunk - convert thinking to content for compatibility
                                         if content:
@@ -418,19 +443,23 @@ async def chat(request: ChatRequest):
             )
         else:
             print(f"[RAG PATH] No knowledge found, falling back to general path")
-            # No knowledge available, use general path
+            # No knowledge available, use general path WITH ACTION instructions
             prompt = f"""You are Navigator, a helpful AI assistant.
+
+{ACTION_INSTRUCTIONS}
 
 Current page context:
 {request.context_text[:1000]}
 
 User question: {request.query}
 
-Provide a helpful answer:"""
+Provide a helpful answer based on the page context:"""
     else:
-        # General path: Direct Ollama (no RAG) but WITH page context
+        # General path: Direct Ollama (no RAG) but WITH page context AND ACTION instructions
         print(f"[GENERAL PATH] Responding directly from Ollama with page context")
         prompt = f"""You are Navigator, a helpful AI assistant.
+
+{ACTION_INSTRUCTIONS}
 
 Current page context:
 {request.context_text[:2000]}
