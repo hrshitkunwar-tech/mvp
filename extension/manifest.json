@@ -41,17 +41,17 @@
       ],
       "run_at": "document_idle",
       "all_frames": true
-    },
+    }
+  ],
+  "web_accessible_resources": [
     {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
+      "resources": [
         "zoneguide/zones.js",
         "zoneguide/index.js"
       ],
-      "world": "MAIN",
-      "run_at": "document_idle"
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ],
   "commands": {

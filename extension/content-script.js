@@ -17,6 +17,35 @@ function ContentAgent() {
 ContentAgent.prototype.init = function () {
     var self = this;
 
+    // NEW: Inject ZoneGuide into page context (not isolated world)
+    if (window.top === window && !window.__ZONEGUIDE_INJECTED__) {
+        try {
+            // Inject zones.js
+            var script1 = document.createElement('script');
+            script1.src = chrome.runtime.getURL('zoneguide/zones.js');
+            script1.onload = function() {
+                console.log('[Navigator] zones.js injected');
+                // Inject index.js after zones.js loads
+                var script2 = document.createElement('script');
+                script2.src = chrome.runtime.getURL('zoneguide/index.js');
+                script2.onload = function() {
+                    console.log('[Navigator] index.js injected');
+                };
+                script2.onerror = function(e) {
+                    console.error('[Navigator] Failed to load index.js:', e);
+                };
+                (document.head || document.documentElement).appendChild(script2);
+            };
+            script1.onerror = function(e) {
+                console.error('[Navigator] Failed to load zones.js:', e);
+            };
+            (document.head || document.documentElement).appendChild(script1);
+            window.__ZONEGUIDE_INJECTED__ = true;
+        } catch (e) {
+            console.error('[Navigator] ZoneGuide injection error:', e);
+        }
+    }
+
     // Aggressive periodic scan to catch dynamic content (React/Next apps)
     this.pollInterval = setInterval(function () { self.scanAndSend('POLL'); }, 10000);
 
