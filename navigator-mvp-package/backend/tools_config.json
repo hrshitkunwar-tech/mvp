@@ -1,0 +1,185 @@
+{
+  "tools": [
+    {
+      "id": 1,
+      "name": "GitHub",
+      "patterns": ["github.com"],
+      "description": "Code hosting and collaboration platform"
+    },
+    {
+      "id": 2,
+      "name": "GitLab",
+      "patterns": ["gitlab.com"],
+      "description": "DevOps lifecycle tool"
+    },
+    {
+      "id": 3,
+      "name": "Bitbucket",
+      "patterns": ["bitbucket.org"],
+      "description": "Git repository management"
+    },
+    {
+      "id": 4,
+      "name": "Stack Overflow",
+      "patterns": ["stackoverflow.com"],
+      "description": "Developer Q&A community"
+    },
+    {
+      "id": 5,
+      "name": "Python Docs",
+      "patterns": ["docs.python.org"],
+      "description": "Official Python documentation"
+    },
+    {
+      "id": 6,
+      "name": "MDN",
+      "patterns": ["developer.mozilla.org"],
+      "description": "Web technology documentation"
+    },
+    {
+      "id": 7,
+      "name": "React",
+      "patterns": ["react.dev", "reactjs.org"],
+      "description": "JavaScript library for building UIs"
+    },
+    {
+      "id": 8,
+      "name": "Angular",
+      "patterns": ["angular.io", "angular.dev"],
+      "description": "Web application framework"
+    },
+    {
+      "id": 9,
+      "name": "Vue.js",
+      "patterns": ["vuejs.org"],
+      "description": "Progressive JavaScript framework"
+    },
+    {
+      "id": 10,
+      "name": "Node.js",
+      "patterns": ["nodejs.org"],
+      "description": "JavaScript runtime"
+    },
+    {
+      "id": 11,
+      "name": "AWS",
+      "patterns": ["aws.amazon.com", "console.aws.amazon.com"],
+      "description": "Amazon Web Services cloud platform"
+    },
+    {
+      "id": 12,
+      "name": "Google Cloud",
+      "patterns": ["cloud.google.com", "console.cloud.google.com"],
+      "description": "Google Cloud Platform"
+    },
+    {
+      "id": 13,
+      "name": "Azure",
+      "patterns": ["azure.microsoft.com", "portal.azure.com"],
+      "description": "Microsoft Azure cloud services"
+    },
+    {
+      "id": 14,
+      "name": "Docker",
+      "patterns": ["docker.com", "hub.docker.com"],
+      "description": "Container platform"
+    },
+    {
+      "id": 15,
+      "name": "Kubernetes",
+      "patterns": ["kubernetes.io"],
+      "description": "Container orchestration"
+    },
+    {
+      "id": 16,
+      "name": "Figma",
+      "patterns": ["figma.com"],
+      "description": "Design and prototyping tool"
+    },
+    {
+      "id": 17,
+      "name": "Notion",
+      "patterns": ["notion.so"],
+      "description": "Workspace and note-taking"
+    },
+    {
+      "id": 18,
+      "name": "Slack",
+      "patterns": ["slack.com", "app.slack.com"],
+      "description": "Team communication platform"
+    },
+    {
+      "id": 19,
+      "name": "Trello",
+      "patterns": ["trello.com"],
+      "description": "Project management boards"
+    },
+    {
+      "id": 20,
+      "name": "Jira",
+      "patterns": ["atlassian.com/jira", "jira.atlassian.com"],
+      "description": "Issue and project tracking"
+    },
+    {
+      "id": 21,
+      "name": "Linear",
+      "patterns": ["linear.app"],
+      "description": "Issue tracking for software teams"
+    },
+    {
+      "id": 22,
+      "name": "Asana",
+      "patterns": ["asana.com", "app.asana.com"],
+      "description": "Work management platform"
+    },
+    {
+      "id": 23,
+      "name": "Monday.com",
+      "patterns": ["monday.com"],
+      "description": "Work operating system"
+    },
+    {
+      "id": 24,
+      "name": "Vercel",
+      "patterns": ["vercel.com"],
+      "description": "Frontend deployment platform"
+    },
+    {
+      "id": 25,
+      "name": "Netlify",
+      "patterns": ["netlify.com", "app.netlify.com"],
+      "description": "Web hosting and automation"
+    },
+    {
+      "id": 26,
+      "name": "Railway",
+      "patterns": ["railway.app"],
+      "description": "Infrastructure platform"
+    },
+    {
+      "id": 27,
+      "name": "Render",
+      "patterns": ["render.com"],
+      "description": "Cloud application platform"
+    },
+    {
+      "id": 28,
+      "name": "Supabase",
+      "patterns": ["supabase.com", "app.supabase.com"],
+      "description": "Open source Firebase alternative"
+    },
+    {
+      "id": 29,
+      "name": "Firebase",
+      "patterns": ["firebase.google.com", "console.firebase.google.com"],
+      "description": "App development platform"
+    },
+    {
+      "id": 30,
+      "name": "Stripe",
+      "patterns": ["stripe.com", "dashboard.stripe.com"],
+      "description": "Payment processing platform"
+    }
+  ],
+  "note": "This is a starter list of 30 tools. Expand to 89 tools based on your ScrapeData knowledge base."
+}
