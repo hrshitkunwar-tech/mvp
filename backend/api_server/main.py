@@ -34,7 +34,7 @@ app.add_middleware(
 # Configuration
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
 CONVEX_URL = os.getenv("CONVEX_URL", "https://abundant-porpoise-181.convex.cloud")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:8b")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:8b")
 
 # Request models
 class DetectToolRequest(BaseModel):
