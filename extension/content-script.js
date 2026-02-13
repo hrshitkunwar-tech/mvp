@@ -75,18 +75,43 @@ ContentAgent.prototype.init = function () {
     // NEW: Relay ZONEGUIDE messages from background to page context
     chrome.runtime.onMessage.addListener(function (req, sender, sendResponse) {
         if (req.type && req.type.startsWith('ZONEGUIDE_')) {
-            // Forward message to page context via window.postMessage
-            window.postMessage(req, '*');
+            // First check if zoneguide is ready by sending PING
+            var pingTimeout = null;
 
-            // Listen for response from page
-            var responseHandler = function(event) {
+            var readyHandler = function(event) {
                 if (event.source !== window) return;
-                if (event.data && event.data.type === 'ZONEGUIDE_RESPONSE') {
-                    window.removeEventListener('message', responseHandler);
-                    sendResponse(event.data.payload);
+
+                // Received PONG - zoneguide is ready
+                if (event.data && event.data.type === 'ZONEGUIDE_PONG') {
+                    clearTimeout(pingTimeout);
+                    window.removeEventListener('message', readyHandler);
+
+                    // Now forward the actual message
+                    window.postMessage(req, '*');
+
+                    // Listen for response
+                    var responseHandler = function(event) {
+                        if (event.source !== window) return;
+                        if (event.data && event.data.type === 'ZONEGUIDE_RESPONSE') {
+                            window.removeEventListener('message', responseHandler);
+                            sendResponse(event.data.payload);
+                        }
+                    };
+                    window.addEventListener('message', responseHandler);
                 }
             };
-            window.addEventListener('message', responseHandler);
+
+            window.addEventListener('message', readyHandler);
+
+            // Send PING to check readiness
+            window.postMessage({type: 'ZONEGUIDE_PING'}, '*');
+
+            // Timeout after 1 second if no PONG received
+            pingTimeout = setTimeout(function() {
+                window.removeEventListener('message', readyHandler);
+                console.error('[Navigator] ZoneGuide not ready - timeout');
+                sendResponse({error: 'ZoneGuide not loaded'});
+            }, 1000);
 
             return true; // Keep channel open for async response
         }

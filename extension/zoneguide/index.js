@@ -17,10 +17,10 @@
     return;
   }
 
-  const zones = window.__ZONEGUIDE_ZONES__;
+  var zones = window.__ZONEGUIDE_ZONES__;
 
   // Module state
-  const state = {
+  var state = {
     mode: 'idle', // 'idle' | 'recording' | 'playing'
     version: '1.0.0',
     initialized: false
@@ -47,6 +47,12 @@
       if (!message || !message.type || !message.type.startsWith('ZONEGUIDE_')) return;
 
       console.log('[ZoneGuide] Received postMessage:', message.type);
+
+      // Readiness check - respond to PING with PONG
+      if (message.type === 'ZONEGUIDE_PING') {
+        window.postMessage({type: 'ZONEGUIDE_PONG'}, '*');
+        return;
+      }
 
       // Call handleMessage with mock sender and response callback
       handleMessage(message, {}, function(response) {
@@ -142,7 +148,7 @@
   /**
    * Public API exposed to window for testing and future phases.
    */
-  const ZoneGuide = {
+  var ZoneGuide = {
     // Zone utilities
     ZONES: zones.ZONES,
     getZone: zones.getZone,

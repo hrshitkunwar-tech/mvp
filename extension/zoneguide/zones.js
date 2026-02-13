@@ -14,7 +14,7 @@
 (function() {
   'use strict';
 
-  const ZONES = Object.freeze({
+  var ZONES = Object.freeze({
     CENTER: 'center',
     ARC_TL: 'arc-tl',
     ARC_TR: 'arc-tr',
@@ -30,15 +30,15 @@
    * @returns {string} Zone identifier (ZONES.CENTER, ZONES.ARC_TL, etc.)
    */
   function getZone(element) {
-    const rect = element.getBoundingClientRect();
+    var rect = element.getBoundingClientRect();
 
     // Calculate element's center point, normalized to viewport (0.0 - 1.0)
-    const cx = (rect.left + rect.width / 2) / window.innerWidth;
-    const cy = (rect.top + rect.height / 2) / window.innerHeight;
+    var cx = (rect.left + rect.width / 2) / window.innerWidth;
+    var cy = (rect.top + rect.height / 2) / window.innerHeight;
 
     // Clamp to 0-1 range (element might be partially off-screen)
-    const x = Math.max(0, Math.min(1, cx));
-    const y = Math.max(0, Math.min(1, cy));
+    var x = Math.max(0, Math.min(1, cx));
+    var y = Math.max(0, Math.min(1, cy));
 
     // Center star: inner 40% of viewport (0.3 to 0.7 on both axes)
     if (x > 0.3 && x < 0.7 && y > 0.3 && y < 0.7) {
@@ -68,7 +68,7 @@
     hideZoneHeatmap();
 
     // Create overlay element
-    const overlay = document.createElement('div');
+    var overlay = document.createElement('div');
     overlay.className = 'zg-zone-overlay zg-zone-' + zone;
     overlay.setAttribute('data-zoneguide', 'zone-overlay');
     overlay.setAttribute('aria-hidden', 'true');
@@ -95,7 +95,7 @@
    * Remove all zone heatmap overlays from the page.
    */
   function hideZoneHeatmap() {
-    const overlays = document.querySelectorAll('.zg-zone-overlay');
+    var overlays = document.querySelectorAll('.zg-zone-overlay');
     overlays.forEach(function(overlay) {
       if (overlay.parentNode) {
         overlay.remove();
@@ -111,7 +111,7 @@
    * @returns {{x: number, y: number}} Normalized center point
    */
   function getZoneCenter(zone) {
-    const centers = {
+    var centers = {
       'center':  { x: 0.5, y: 0.5 },
       'arc-tl':  { x: 0.25, y: 0.25 },
       'arc-tr':  { x: 0.75, y: 0.25 },
@@ -130,7 +130,7 @@
    * @returns {boolean} True if element is at least partially visible
    */
   function isElementInViewport(element) {
-    const rect = element.getBoundingClientRect();
+    var rect = element.getBoundingClientRect();
 
     return (
       rect.top < window.innerHeight &&
