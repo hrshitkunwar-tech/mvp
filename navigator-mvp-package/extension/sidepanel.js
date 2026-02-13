@@ -14,18 +14,49 @@ var port = null;
 var currentTabId = null;
 var currentAiMessageDiv = null;
 
+function updateContextIndicator(tab) {
+    if (!tab || !contextBadge) return;
+
+    // Extract clean display name
+    var displayText = "";
+
+    if (tab.title && tab.title !== "" && !tab.title.startsWith("data:")) {
+        // Use page title, truncate if too long
+        displayText = tab.title.substring(0, 35);
+    } else if (tab.url) {
+        // Extract domain from URL
+        try {
+            var url = new URL(tab.url);
+            displayText = url.hostname.replace('www.', '');
+        } catch (e) {
+            displayText = "Unknown Page";
+        }
+    } else {
+        displayText = "Page";
+    }
+
+    contextBadge.textContent = "● " + displayText;
+    contextBadge.classList.add('active');
+}
+
 function init() {
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
         if (tabs && tabs.length > 0) {
             currentTabId = tabs[0].id;
-            contextBadge.textContent = "● Linked to " + (tabs[0].title || "Page").substring(0, 20) + "...";
-            contextBadge.classList.add('active');
+            updateContextIndicator(tabs[0]);
 
             var dbgTab = document.getElementById('dbg-tab');
             if (dbgTab) dbgTab.textContent = currentTabId;
 
             // Trigger scan on startup
             requestImmediateScan();
+
+            // Update indicator when tab changes
+            chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
+                if (tabId === currentTabId && changeInfo.title) {
+                    updateContextIndicator(tab);
+                }
+            });
         }
     });
 
@@ -79,26 +110,60 @@ function requestImmediateScan() {
 
 function connect() {
     if (port) return;
+
+    console.log("Connecting to background service worker...");
+
     try {
         port = chrome.runtime.connect({ name: 'sidepanel-connection' });
+
         port.onMessage.addListener(function (msg) {
             if (msg.type === 'token') appendToken(msg.text);
             else if (msg.type === 'done') finishStream();
             else if (msg.type === 'error') appendError(msg.text);
         });
+
         port.onDisconnect.addListener(function () {
+            console.log("Port disconnected, reconnecting in 1s...");
             port = null;
-            setTimeout(connect, 2000);
+
+            // Update UI to show reconnection
+            if (contextBadge) {
+                contextBadge.textContent = "🔄 Reconnecting...";
+                contextBadge.classList.remove('active');
+            }
+
+            setTimeout(function() {
+                connect();
+                // Restore context badge after reconnection
+                if (currentTabId) {
+                    chrome.tabs.get(currentTabId, function(tab) {
+                        if (tab && contextBadge) {
+                            updateContextIndicator(tab);
+                        }
+                    });
+                }
+            }, 1000);
         });
+
+        console.log("✓ Connected to background service worker");
+
     } catch (e) {
+        console.error("Connection error:", e);
         port = null;
-        setTimeout(connect, 2000);
+        setTimeout(connect, 1000);
     }
 }
 
 function sendMessage() {
     var text = inputField.value.trim();
     if (!text) return;
+
+    // Check if port is valid before sending
+    if (!port) {
+        appendError("Not connected to backend. Reconnecting...");
+        connect();
+        return;
+    }
 
     addMessage(text, 'user');
     inputField.value = '';
@@ -108,12 +173,11 @@ function sendMessage() {
     currentAiMessageDiv.classList.add('streaming');
     currentAiMessageDiv.rawText = "";
 
-    if (!port) connect();
-
     try {
         port.postMessage({ action: 'ASK_LLM', query: text, tabId: currentTabId });
     } catch (e) {
-        appendError("Connection issue. Retrying...");
+        console.error("Error sending message:", e);
+        appendError("Connection lost. Please try again.");
         port = null;
         connect();
     }
