@@ -281,7 +281,7 @@ ACTION:highlight_zone:arc-tl:.UnderlineNav-item[data-tab-item="pull-requests-tab
 # Common GitHub navigation patterns for action injection fallback
 GITHUB_NAVIGATION_PATTERNS = {
     'pull request': {
-        'keywords': ['pull request', 'pr tab', 'pull requests tab'],
+        'keywords': ['pull request', 'pr tab', 'pull requests tab', 'view pr', 'view pull request', 'see pr', 'see pull request', 'find pr', 'find pull request'],
         'action': 'ACTION:highlight_zone:arc-tl:.UnderlineNav-item[data-tab-item="pull-requests-tab"]:3000'
     },
     'issues': {
@@ -293,7 +293,7 @@ GITHUB_NAVIGATION_PATTERNS = {
         'action': 'ACTION:highlight_zone:arc-tl:.UnderlineNav-item[data-tab-item="code-tab"]:3000'
     },
     'new pr': {
-        'keywords': ['new pull request', 'create pull request', 'create pr'],
+        'keywords': ['new pull request', 'create pull request', 'create pr', 'make pr', 'create a pr', 'make a pull request', 'open pr', 'open pull request'],
         'action': 'ACTION:highlight_zone:center:a[href*="/compare"]:2500'
     },
     'star': {
@@ -327,10 +327,11 @@ def inject_action_if_missing(text_chunk: str, query: str) -> str:
     if not any(keyword in query_lower for keyword in ['how', 'where', 'create', 'open', 'navigate', 'find']):
         return text_chunk
 
-    # Check for pattern matches
+    # Check for pattern matches in BOTH query and response
     for pattern_name, pattern_data in GITHUB_NAVIGATION_PATTERNS.items():
         for keyword in pattern_data['keywords']:
-            if keyword in text_lower:
+            # Check if keyword appears in query OR response
+            if keyword in query_lower or keyword in text_lower:
                 # Found match - inject action
                 injected = f"{text_chunk}\n{pattern_data['action']}"
                 print(f"[ACTION INJECTION] Added {pattern_name} action (model didn't generate)")
