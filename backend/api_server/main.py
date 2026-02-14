@@ -319,12 +319,21 @@ def inject_action_if_missing(text_chunk: str, query: str) -> str:
     query_lower = query.lower()
     text_lower = text_chunk.lower()
 
+    print(f"[ACTION DEBUG] Checking injection for query: '{query[:50]}...'")
+    print(f"[ACTION DEBUG] Text length: {len(text_chunk)}, Has ACTION: {'ACTION:' in text_chunk}")
+
     # Skip if already has ACTION
     if "ACTION:" in text_chunk:
+        print("[ACTION DEBUG] Skipping - ACTION already present")
         return text_chunk
 
-    # Skip if not a navigation query
-    if not any(keyword in query_lower for keyword in ['how', 'where', 'create', 'open', 'navigate', 'find']):
+    # Skip if not a navigation query (added 'pr' to catch PR queries)
+    nav_keywords = ['how', 'where', 'create', 'open', 'navigate', 'find', 'pr', 'pull request']
+    has_nav_keyword = any(keyword in query_lower for keyword in nav_keywords)
+    print(f"[ACTION DEBUG] Has navigation keyword: {has_nav_keyword}")
+
+    if not has_nav_keyword:
+        print("[ACTION DEBUG] Skipping - not a navigation query")
         return text_chunk
 
     # Check for pattern matches in BOTH query and response
@@ -334,9 +343,11 @@ def inject_action_if_missing(text_chunk: str, query: str) -> str:
             if keyword in query_lower or keyword in text_lower:
                 # Found match - inject action
                 injected = f"{text_chunk}\n{pattern_data['action']}"
-                print(f"[ACTION INJECTION] Added {pattern_name} action (model didn't generate)")
+                print(f"[ACTION INJECTION] ✓ Added '{pattern_name}' action (keyword: '{keyword}')")
+                print(f"[ACTION INJECTION] ✓ Full action: {pattern_data['action']}")
                 return injected
 
+    print("[ACTION DEBUG] No pattern match found")
     return text_chunk
 
 async def stream_ollama_response(prompt: str, is_chat: bool = True, query: str = ""):
@@ -439,8 +450,10 @@ async def stream_ollama_response(prompt: str, is_chat: bool = True, query: str =
                                             yield json.dumps(data) + "\n"
                                 else:
                                     # No message content - check if this is the done signal
+                                    print(f"[ACTION DEBUG] Stream done: {data.get('done')}, action_emitted: {action_emitted}, has_text: {bool(accumulated_text)}, has_query: {bool(query)}")
                                     if data.get("done") and not action_emitted and accumulated_text and query:
                                         # Response complete, no ACTION was emitted - try fallback injection
+                                        print(f"[ACTION DEBUG] Calling inject_action_if_missing...")
                                         injected = inject_action_if_missing(accumulated_text, query)
                                         if injected != accumulated_text:
                                             # Injection happened - send the ACTION
