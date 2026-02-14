@@ -192,45 +192,51 @@ async def query_convex_knowledge(tool_name: str, query: str, limit: int = 5):
 
 # ACTION INSTRUCTIONS - Reusable constant for all prompt paths
 ACTION_INSTRUCTIONS = """
-CRITICAL - Visual Guidance for GitHub:
-When guiding users through GitHub UI tasks, you MUST emit action directives to highlight elements visually.
-This is MANDATORY for all navigation instructions.
+🎯 CRITICAL REQUIREMENT - Visual Guidance System:
 
-Action format (use EXACTLY this format):
-Your text instruction here.
+When users ask HOW to do something on GitHub, you MUST emit action directives to show them WHERE to click.
+
+FORMAT (use EXACTLY this - no variations):
+Your instruction text.
 ACTION:highlight_zone:zone_name:css_selector:duration_ms
 
-MANDATORY EXAMPLES - Follow this pattern precisely:
+MANDATORY EXAMPLES (copy this pattern precisely):
 
-Example 1:
-"First, click the Pull Requests tab at the top of the page."
+Example 1 - Pull Requests Tab:
+"First, navigate to the Pull Requests tab."
 ACTION:highlight_zone:arc-tl:.UnderlineNav-item[data-tab-item="pull-requests-tab"]:3000
 
-Example 2:
-"Next, click the green New Pull Request button."
+Example 2 - New PR Button:
+"Click the green 'New pull request' button."
 ACTION:highlight_zone:center:a[href*="/compare"]:2500
 
-Example 3:
-"Click on the Issues tab to view all issues."
+Example 3 - Issues Tab:
+"Open the Issues tab to see all issues."
 ACTION:highlight_zone:arc-tl:.UnderlineNav-item[data-tab-item="issues-tab"]:3000
 
-Example 4:
-"Now click the Code tab to return to the repository."
+Example 4 - Code Tab:
+"Return to the Code tab."
 ACTION:highlight_zone:arc-tl:.UnderlineNav-item[data-tab-item="code-tab"]:3000
 
-Available zones:
-- center: Main content area (for primary action buttons)
-- arc-tl: Top-left (for navigation tabs like Pull Requests, Issues, Code)
-- arc-tr: Top-right (for repository actions like Fork, Star, Watch)
+ZONES (choose the right one):
+- center: Main content area (primary action buttons, create/compare buttons)
+- arc-tl: Top-left (navigation tabs: Code, Issues, Pull Requests, etc.)
+- arc-tr: Top-right (repository actions: Fork, Star, Watch)
 - arc-bl: Bottom-left
 - arc-br: Bottom-right
 
 RULES:
-1. ALWAYS emit ACTION directive immediately after each navigation instruction
-2. Use EXACT format: ACTION:highlight_zone:zone:selector:duration
-3. Duration should be 2500-3000ms
-4. Only emit actions for GitHub navigation tasks
-5. For general questions or explanations, just provide text (no actions)
+1. ALWAYS emit ACTION after navigation instructions ("click X", "go to Y", "open Z")
+2. NEVER emit ACTION for explanations ("PR stands for Pull Request")
+3. Use duration 2500-3000ms
+4. Format must be EXACT - check examples above
+5. For multi-step tasks, emit multiple ACTIONs (one per step)
+
+DETECTION: If the user's query contains words like:
+- "how do I..." / "how to..." / "how can I..."
+- "where is..." / "where can I find..."
+- "create" / "open" / "navigate" / "go to" / "click"
+Then you MUST emit ACTION directives for each navigation step.
 """
 
 def build_rag_prompt(query: str, tool_name: Optional[str], context_text: str, knowledge_chunks: list):
@@ -251,6 +257,11 @@ Key principles:
 4. Consider the user's current screen context to understand their objective
 
 {ACTION_INSTRUCTIONS}
+
+EXAMPLE INTERACTION (study this pattern):
+User: "How do I view pull requests?"
+Assistant: "To view pull requests, click the Pull Requests tab at the top of the page.
+ACTION:highlight_zone:arc-tl:.UnderlineNav-item[data-tab-item="pull-requests-tab"]:3000"
 """
 
     # Add tool-specific context
@@ -262,18 +273,79 @@ Key principles:
     # Add page context
     system += f"\n\nCurrent page context:\n{context_text[:2000]}\n"
 
-    # User query
-    user_prompt = f"\nUser question: {query}\n\nProvide a helpful, grounded answer:"
+    # User query with reinforcement
+    user_prompt = f"\nUser question: {query}\n\nProvide a helpful answer. REMEMBER: If this is a navigation question, emit ACTION directives!"
 
     return system + user_prompt
 
-async def stream_ollama_response(prompt: str, is_chat: bool = True):
+# Common GitHub navigation patterns for action injection fallback
+GITHUB_NAVIGATION_PATTERNS = {
+    'pull request': {
+        'keywords': ['pull request', 'pr tab', 'pull requests tab'],
+        'action': 'ACTION:highlight_zone:arc-tl:.UnderlineNav-item[data-tab-item="pull-requests-tab"]:3000'
+    },
+    'issues': {
+        'keywords': ['issues tab', 'view issues', 'see issues'],
+        'action': 'ACTION:highlight_zone:arc-tl:.UnderlineNav-item[data-tab-item="issues-tab"]:3000'
+    },
+    'code': {
+        'keywords': ['code tab', 'back to code', 'return to code'],
+        'action': 'ACTION:highlight_zone:arc-tl:.UnderlineNav-item[data-tab-item="code-tab"]:3000'
+    },
+    'new pr': {
+        'keywords': ['new pull request', 'create pull request', 'create pr'],
+        'action': 'ACTION:highlight_zone:center:a[href*="/compare"]:2500'
+    },
+    'star': {
+        'keywords': ['star repo', 'star repository', 'star button'],
+        'action': 'ACTION:highlight_zone:arc-tr:button[data-hydro-click*="star"]:2500'
+    },
+    'fork': {
+        'keywords': ['fork repo', 'fork repository', 'fork button'],
+        'action': 'ACTION:highlight_zone:arc-tr:form[action*="/fork"] button:2500'
+    }
+}
+
+def inject_action_if_missing(text_chunk: str, query: str) -> str:
+    """
+    Safety net: Inject ACTION directive if model didn't generate one
+    but the query clearly asks for navigation guidance.
+
+    Only triggers if:
+    1. Query contains navigation keywords (how, where, create, etc.)
+    2. Response text doesn't already contain "ACTION:"
+    3. Text mentions a known GitHub element
+    """
+    query_lower = query.lower()
+    text_lower = text_chunk.lower()
+
+    # Skip if already has ACTION
+    if "ACTION:" in text_chunk:
+        return text_chunk
+
+    # Skip if not a navigation query
+    if not any(keyword in query_lower for keyword in ['how', 'where', 'create', 'open', 'navigate', 'find']):
+        return text_chunk
+
+    # Check for pattern matches
+    for pattern_name, pattern_data in GITHUB_NAVIGATION_PATTERNS.items():
+        for keyword in pattern_data['keywords']:
+            if keyword in text_lower:
+                # Found match - inject action
+                injected = f"{text_chunk}\n{pattern_data['action']}"
+                print(f"[ACTION INJECTION] Added {pattern_name} action (model didn't generate)")
+                return injected
+
+    return text_chunk
+
+async def stream_ollama_response(prompt: str, is_chat: bool = True, query: str = ""):
     """
     Streams response from Ollama.
     Yields JSON lines compatible with the extension's stream parser.
     Args:
         prompt: The prompt to send to Ollama
         is_chat: If True, use chat API. If False, use generate API.
+        query: The original user query (for action injection fallback)
     """
     async with httpx.AsyncClient(timeout=60.0) as client:
         try:
@@ -296,6 +368,10 @@ async def stream_ollama_response(prompt: str, is_chat: bool = True):
                         yield json.dumps({"error": f"Ollama error: {error_text.decode()}"}) + "\n"
                         return
 
+                    # Track if we've emitted any ACTION directives (for fallback injection)
+                    action_emitted = False
+                    accumulated_text = ""
+
                     async for line in response.aiter_lines():
                         if line.strip():
                             try:
@@ -307,6 +383,7 @@ async def stream_ollama_response(prompt: str, is_chat: bool = True):
                                     content = data["message"].get("content") or data["message"].get("thinking") or ""
 
                                     if content and "ACTION:" in content:
+                                        action_emitted = True  # Mark that we found ACTION
                                         # Split text and action
                                         parts = content.split("ACTION:")
                                         text_part = parts[0].strip()
@@ -353,13 +430,43 @@ async def stream_ollama_response(prompt: str, is_chat: bool = True):
                                                 # CRITICAL: Log parse failures for debugging (no more silent drops!)
                                                 print(f"[ACTION] Parse error: {e} | Raw: {action_part[:100]}")
                                     else:
-                                        # Normal text chunk - convert thinking to content for compatibility
+                                        # Normal text chunk - accumulate for potential fallback injection
                                         if content:
+                                            accumulated_text += content
                                             yield json.dumps({"message": {"content": content}}) + "\n"
                                         else:
                                             yield json.dumps(data) + "\n"
                                 else:
-                                    # No message content, forward as-is (done, etc.)
+                                    # No message content - check if this is the done signal
+                                    if data.get("done") and not action_emitted and accumulated_text and query:
+                                        # Response complete, no ACTION was emitted - try fallback injection
+                                        injected = inject_action_if_missing(accumulated_text, query)
+                                        if injected != accumulated_text:
+                                            # Injection happened - send the ACTION
+                                            action_part = injected.split("ACTION:")[1].strip()
+                                            try:
+                                                action_tokens = action_part.split(":", 3)
+                                                if len(action_tokens) >= 4:
+                                                    import re
+                                                    action_type = action_tokens[0].strip()
+                                                    zone = action_tokens[1].strip()
+                                                    selector = action_tokens[2].strip()
+                                                    duration_str = action_tokens[3].strip()
+                                                    duration_match = re.match(r'(\d+)', duration_str)
+                                                    duration = int(duration_match.group(1)) if duration_match else 2500
+
+                                                    yield json.dumps({
+                                                        "action": {
+                                                            "type": action_type,
+                                                            "zone": zone,
+                                                            "selector": selector,
+                                                            "duration": duration
+                                                        }
+                                                    }) + "\n"
+                                            except Exception as e:
+                                                print(f"[ACTION INJECTION] Parse error: {e}")
+
+                                    # Forward done/other messages
                                     yield json.dumps(data) + "\n"
                             except json.JSONDecodeError:
                                 continue
@@ -448,12 +555,17 @@ async def chat(request: ChatRequest):
 
 {ACTION_INSTRUCTIONS}
 
+EXAMPLE:
+User: "Where do I find issues?"
+Assistant: "Click the Issues tab at the top.
+ACTION:highlight_zone:arc-tl:.UnderlineNav-item[data-tab-item="issues-tab"]:3000"
+
 Current page context:
 {request.context_text[:1000]}
 
 User question: {request.query}
 
-Provide a helpful answer based on the page context:"""
+Provide a helpful answer. If this asks HOW or WHERE to do something, emit ACTION directives:"""
     else:
         # General path: Direct Ollama (no RAG) but WITH page context AND ACTION instructions
         print(f"[GENERAL PATH] Responding directly from Ollama with page context")
@@ -466,12 +578,12 @@ Current page context:
 
 User question: {request.query}
 
-Provide a clear, helpful answer based on the page context when relevant:"""
+Provide a clear answer. If this is a navigation question, include ACTION directives:"""
 
     # Step 4: Stream response from Ollama
     print(f"Streaming response from Ollama ({OLLAMA_MODEL})...")
     return StreamingResponse(
-        stream_ollama_response(prompt, is_chat=True),
+        stream_ollama_response(prompt, is_chat=True, query=request.query),
         media_type="application/x-ndjson"
     )
 
