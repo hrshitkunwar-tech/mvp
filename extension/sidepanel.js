@@ -9,10 +9,14 @@ var contextBadge = document.getElementById('context-indicator');
 var debugBtn = document.getElementById('btn-debug');
 var debugPanel = document.getElementById('debug-panel');
 var forceScanBtn = document.getElementById('btn-force-scan');
+var toggleOverlays = document.getElementById('toggle-overlays');
+var settingsBtn = document.getElementById('btn-settings');
+var settingsPanel = document.getElementById('settings-panel');
 
 var port = null;
 var currentTabId = null;
 var currentAiMessageDiv = null;
+var overlaysEnabled = true;
 
 function updateContextIndicator(tab) {
     if (!tab || !contextBadge) return;
@@ -97,6 +101,32 @@ function init() {
                 forceScanBtn.textContent = "FORCE SCAN";
                 refreshDebug();
             }, 800);
+        });
+    }
+
+    // Settings panel toggle
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', function () {
+            settingsPanel.classList.toggle('hidden');
+        });
+    }
+
+    // Overlay toggle
+    if (toggleOverlays) {
+        // Load saved preference
+        chrome.storage.local.get(['overlaysEnabled'], function(result) {
+            overlaysEnabled = result.overlaysEnabled !== false; // Default to true
+            if (!overlaysEnabled) {
+                toggleOverlays.classList.remove('active');
+            }
+        });
+
+        toggleOverlays.addEventListener('click', function () {
+            overlaysEnabled = !overlaysEnabled;
+            toggleOverlays.classList.toggle('active');
+
+            // Save preference
+            chrome.storage.local.set({ overlaysEnabled: overlaysEnabled });
         });
     }
 }
@@ -205,8 +235,65 @@ function appendToken(text) {
 function finishStream() {
     if (currentAiMessageDiv) {
         currentAiMessageDiv.classList.remove('streaming');
+
+        // Detect step-by-step instructions
+        var text = currentAiMessageDiv.rawText || currentAiMessageDiv.textContent;
+        var hasSteps = detectStepByStepInstructions(text);
+
+        if (hasSteps) {
+            // Add navigation prompt
+            var promptDiv = document.createElement('div');
+            promptDiv.className = 'navigation-prompt';
+            promptDiv.innerHTML = `
+                <div class="navigation-prompt-text">Should I navigate you on the screen?</div>
+                <div class="navigation-prompt-buttons">
+                    <button class="nav-btn nav-btn-yes">Yes, guide me</button>
+                    <button class="nav-btn nav-btn-no">No, thanks</button>
+                </div>
+            `;
+
+            currentAiMessageDiv.appendChild(promptDiv);
+
+            // Add event listeners
+            var yesBtn = promptDiv.querySelector('.nav-btn-yes');
+            var noBtn = promptDiv.querySelector('.nav-btn-no');
+
+            yesBtn.addEventListener('click', function() {
+                startNavigationGuidance(text);
+                promptDiv.remove();
+            });
+
+            noBtn.addEventListener('click', function() {
+                promptDiv.remove();
+            });
+        }
+
         currentAiMessageDiv = null;
     }
+}
+
+/**
+ * Detect if the text contains step-by-step instructions
+ */
+function detectStepByStepInstructions(text) {
+    if (!text) return false;
+
+    // Pattern 1: Numbered lists (1. 2. 3. or Step 1: Step 2:)
+    var numberedPattern = /(\n|^)\s*(\d+\.|Step \d+:)/i;
+
+    // Pattern 2: Sequential action words
+    var actionWords = ['first', 'then', 'next', 'after that', 'finally', 'lastly'];
+    var hasMultipleActions = 0;
+    for (var i = 0; i < actionWords.length; i++) {
+        if (text.toLowerCase().indexOf(actionWords[i]) > -1) {
+            hasMultipleActions++;
+        }
+    }
+
+    // Pattern 3: Click/navigate instructions
+    var hasClickInstructions = /click|navigate|go to|select|choose|open|tap/i.test(text);
+
+    return numberedPattern.test(text) || (hasMultipleActions >= 2 && hasClickInstructions);
 }
 
 function appendError(text) {
@@ -249,6 +336,171 @@ function refreshDebug() {
             if (interact) interact.textContent = JSON.stringify(response.context.content.interaction || [], null, 2);
         }
     });
+}
+
+/**
+ * Start interactive navigation guidance
+ * Parse steps and show zone highlights/arrows for each step
+ */
+function startNavigationGuidance(text) {
+    if (!overlaysEnabled) {
+        addMessage('Navigation overlays are disabled. Enable them in settings.', 'error');
+        return;
+    }
+
+    if (!currentTabId) {
+        addMessage('Cannot navigate: no active tab', 'error');
+        return;
+    }
+
+    // Parse steps from the text
+    var steps = parseSteps(text);
+
+    if (steps.length === 0) {
+        addMessage('Could not parse navigation steps', 'error');
+        return;
+    }
+
+    // Show navigation in progress message
+    var navMsg = addMessage('🧭 Starting navigation guidance... (Step 1 of ' + steps.length + ')', 'ai');
+
+    // Navigate through steps
+    navigateSteps(steps, 0, navMsg);
+}
+
+/**
+ * Parse steps from instructional text
+ */
+function parseSteps(text) {
+    var steps = [];
+
+    // Split by numbered lines (1. 2. 3. or Step 1: Step 2:)
+    var lines = text.split('\n');
+    var currentStep = '';
+
+    for (var i = 0; i < lines.length; i++) {
+        var line = lines[i].trim();
+
+        // Check if line starts with a number or "Step"
+        var stepMatch = line.match(/^(\d+\.|Step \d+:)\s*(.+)/i);
+
+        if (stepMatch) {
+            // Save previous step
+            if (currentStep) {
+                steps.push(parseStepAction(currentStep));
+            }
+            // Start new step
+            currentStep = stepMatch[2];
+        } else if (currentStep) {
+            // Continue current step
+            currentStep += ' ' + line;
+        }
+    }
+
+    // Save last step
+    if (currentStep) {
+        steps.push(parseStepAction(currentStep));
+    }
+
+    return steps.filter(function(s) { return s !== null; });
+}
+
+/**
+ * Parse a single step to extract action and target element
+ */
+function parseStepAction(stepText) {
+    // Extract action words and targets
+    var clickMatch = stepText.match(/click\s+(?:on\s+)?(?:the\s+)?["']?([^"'.,]+)["']?/i);
+    var navigateMatch = stepText.match(/(?:go to|navigate to|open)\s+(?:the\s+)?["']?([^"'.,]+)["']?/i);
+    var selectMatch = stepText.match(/select\s+(?:the\s+)?["']?([^"'.,]+)["']?/i);
+
+    var target = null;
+    var action = 'click';
+
+    if (clickMatch) {
+        target = clickMatch[1].trim();
+    } else if (navigateMatch) {
+        target = navigateMatch[1].trim();
+        action = 'navigate';
+    } else if (selectMatch) {
+        target = selectMatch[1].trim();
+    }
+
+    if (!target) {
+        // Generic step without specific element
+        return {
+            text: stepText,
+            target: null,
+            action: 'show',
+            zone: 'center'
+        };
+    }
+
+    return {
+        text: stepText,
+        target: target,
+        action: action,
+        zone: 'center' // Default to center, could be refined with AI
+    };
+}
+
+/**
+ * Navigate through steps with visual guidance
+ */
+function navigateSteps(steps, currentIndex, messageDiv) {
+    if (currentIndex >= steps.length) {
+        messageDiv.textContent = '✅ Navigation complete!';
+        return;
+    }
+
+    var step = steps[currentIndex];
+
+    // Update message
+    messageDiv.textContent = '🧭 Step ' + (currentIndex + 1) + ' of ' + steps.length + ': ' + step.text;
+
+    // Show zone highlight
+    if (overlaysEnabled) {
+        chrome.tabs.sendMessage(currentTabId, {
+            type: 'ZONEGUIDE_SHOW_ZONE',
+            payload: {
+                zone: step.zone,
+                duration: 3000,
+                selector: step.target ? findElementSelector(step.target) : null
+            }
+        }, function(response) {
+            if (chrome.runtime.lastError) {
+                console.warn('Failed to show zone:', chrome.runtime.lastError.message);
+            }
+        });
+    }
+
+    // Auto-advance to next step after 3.5 seconds
+    setTimeout(function() {
+        navigateSteps(steps, currentIndex + 1, messageDiv);
+    }, 3500);
+}
+
+/**
+ * Try to find a CSS selector for a target element description
+ * This is a simple heuristic - could be enhanced with AI/ML
+ */
+function findElementSelector(targetDescription) {
+    // Common patterns
+    var lowerTarget = targetDescription.toLowerCase();
+
+    // Try to match common UI elements
+    if (lowerTarget.includes('button')) {
+        return 'button';
+    } else if (lowerTarget.includes('link')) {
+        return 'a';
+    } else if (lowerTarget.includes('menu')) {
+        return '[role="menu"], nav';
+    } else if (lowerTarget.includes('search')) {
+        return 'input[type="search"], [role="search"]';
+    }
+
+    // Try to find by text content (approximate)
+    return null; // Let ZoneGuide show zone only
 }
 
 init();
