@@ -238,9 +238,13 @@ function finishStream() {
 
         // Detect step-by-step instructions
         var text = currentAiMessageDiv.rawText || currentAiMessageDiv.textContent;
+        console.log('[Navigator] Checking for steps in response:', text.substring(0, 200));
+
         var hasSteps = detectStepByStepInstructions(text);
+        console.log('[Navigator] Step detection result:', hasSteps);
 
         if (hasSteps) {
+            console.log('[Navigator] Adding navigation prompt');
             // Add navigation prompt
             var promptDiv = document.createElement('div');
             promptDiv.className = 'navigation-prompt';
@@ -259,11 +263,13 @@ function finishStream() {
             var noBtn = promptDiv.querySelector('.nav-btn-no');
 
             yesBtn.addEventListener('click', function() {
+                console.log('[Navigator] User clicked "Yes, guide me"');
                 startNavigationGuidance(text);
                 promptDiv.remove();
             });
 
             noBtn.addEventListener('click', function() {
+                console.log('[Navigator] User clicked "No, thanks"');
                 promptDiv.remove();
             });
         }
@@ -278,22 +284,42 @@ function finishStream() {
 function detectStepByStepInstructions(text) {
     if (!text) return false;
 
-    // Pattern 1: Numbered lists (1. 2. 3. or Step 1: Step 2:)
-    var numberedPattern = /(\n|^)\s*(\d+\.|Step \d+:)/i;
+    var lowerText = text.toLowerCase();
 
-    // Pattern 2: Sequential action words
-    var actionWords = ['first', 'then', 'next', 'after that', 'finally', 'lastly'];
+    // Pattern 1: Numbered lists (1. 2. 3. or Step 1: Step 2:)
+    var hasNumberedList = /(?:\n|^)\s*(?:\d+\.|step \d+:)/i.test(text);
+
+    // Pattern 2: Multiple numbered items (at least 2)
+    var numberedItems = text.match(/(?:\n|^)\s*\d+\./g);
+    var hasMultipleNumbers = numberedItems && numberedItems.length >= 2;
+
+    // Pattern 3: Sequential action words
+    var actionWords = ['first', 'then', 'next', 'after that', 'finally', 'lastly', 'second', 'third'];
     var hasMultipleActions = 0;
     for (var i = 0; i < actionWords.length; i++) {
-        if (text.toLowerCase().indexOf(actionWords[i]) > -1) {
+        if (lowerText.indexOf(actionWords[i]) > -1) {
             hasMultipleActions++;
         }
     }
 
-    // Pattern 3: Click/navigate instructions
-    var hasClickInstructions = /click|navigate|go to|select|choose|open|tap/i.test(text);
+    // Pattern 4: Click/navigate instructions
+    var hasClickInstructions = /click|navigate|go to|select|choose|open|tap|press/i.test(text);
 
-    return numberedPattern.test(text) || (hasMultipleActions >= 2 && hasClickInstructions);
+    // Pattern 5: "How to" or instructional language
+    var hasInstructionalLanguage = /how to|here's how|follow these|here are the steps/i.test(text);
+
+    console.log('[Navigator] Detection patterns:', {
+        hasNumberedList: hasNumberedList,
+        hasMultipleNumbers: hasMultipleNumbers,
+        actionWordsCount: hasMultipleActions,
+        hasClickInstructions: hasClickInstructions,
+        hasInstructionalLanguage: hasInstructionalLanguage
+    });
+
+    // Return true if we detect clear step-by-step patterns
+    return hasNumberedList || hasMultipleNumbers ||
+           (hasMultipleActions >= 2 && hasClickInstructions) ||
+           (hasInstructionalLanguage && hasClickInstructions);
 }
 
 function appendError(text) {
