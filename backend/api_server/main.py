@@ -380,59 +380,69 @@ async def stream_ollama_response(prompt: str, is_chat: bool = True, query: str =
                         yield json.dumps({"error": f"Ollama error: {error_text.decode()}"}) + "\n"
                         return
 
-                    # Track if we've emitted any ACTION directives (for fallback injection)
-                    action_emitted = False
+                    # Track accumulated text for ACTION parsing
                     accumulated_text = ""
+                    import re
 
                     async for line in response.aiter_lines():
                         if line.strip():
                             try:
                                 data = json.loads(line)
 
-                                # Check if message contains ACTION directive
-                                # Handle both normal mode (content) and thinking mode (thinking)
+                                # Accumulate all content chunks
                                 if data.get("message"):
                                     content = data["message"].get("content") or data["message"].get("thinking") or ""
 
-                                    if content and "ACTION:" in content:
-                                        action_emitted = True  # Mark that we found ACTION
+                                    if content:
+                                        accumulated_text += content
+                                        # Stream text to user in real-time
+                                        yield json.dumps({"message": {"content": content}}) + "\n"
 
-                                        # Split on ALL ACTION directives
-                                        parts = content.split("ACTION:")
+                                # When stream completes, parse ALL ACTION directives from accumulated text
+                                if data.get("done"):
+                                    print(f"[ACTION PARSER] Stream done. Accumulated text length: {len(accumulated_text)}")
+                                    print(f"[ACTION PARSER] Has ACTION: {'ACTION:' in accumulated_text}")
 
-                                        # Send text before first ACTION (if any)
-                                        if parts[0].strip():
-                                            yield json.dumps({"message": {"content": parts[0].strip()}}) + "\n"
+                                    # Try fallback injection first if no ACTION found
+                                    if "ACTION:" not in accumulated_text and query:
+                                        print(f"[ACTION PARSER] No ACTION found, trying fallback injection...")
+                                        accumulated_text = inject_action_if_missing(accumulated_text, query)
 
-                                        # Process ALL ACTION directives (parts[1], parts[2], parts[3], ...)
-                                        import re
+                                    # Parse ALL ACTION directives from accumulated text
+                                    if "ACTION:" in accumulated_text:
+                                        print(f"[ACTION PARSER] Parsing ACTION directives...")
+                                        parts = accumulated_text.split("ACTION:")
+
+                                        # Process all ACTION directives (skip parts[0] - text before first ACTION)
                                         for i in range(1, len(parts)):
                                             action_part = parts[i].strip()
                                             if not action_part:
                                                 continue
 
                                             try:
-                                                # Split into max 4 parts: type:zone:selector:duration_and_text
-                                                # maxsplit=3 preserves colons in the selector (3rd part)
-                                                action_tokens = action_part.split(":", 3)
+                                                # Extract action line (first line of the part)
+                                                action_line = action_part.split('\n')[0].strip()
+
+                                                # Split: type:zone:selector:duration
+                                                # maxsplit=3 preserves colons in selector
+                                                action_tokens = action_line.split(":", 3)
 
                                                 if len(action_tokens) >= 4:
                                                     action_type = action_tokens[0].strip()
                                                     zone = action_tokens[1].strip()
                                                     selector = action_tokens[2].strip()
-                                                    duration_and_text = action_tokens[3].strip()
+                                                    duration_str = action_tokens[3].strip()
 
-                                                    # Extract duration (number at start) and remaining text
-                                                    duration_match = re.match(r'(\d+)\s*(.*)', duration_and_text, re.DOTALL)
+                                                    # Extract duration (should be just a number)
+                                                    duration_match = re.match(r'(\d+)', duration_str)
                                                     if duration_match:
                                                         duration = int(duration_match.group(1))
-                                                        remaining_text = duration_match.group(2).strip()
 
-                                                        # Log successful parse for debugging
+                                                        # Log success
                                                         selector_preview = selector[:50] + "..." if len(selector) > 50 else selector
-                                                        print(f"[ACTION] Parsed: type={action_type}, zone={zone}, selector={selector_preview}, duration={duration}")
+                                                        print(f"[ACTION PARSER] ✓ Parsed: type={action_type}, zone={zone}, selector={selector_preview}, duration={duration}")
 
-                                                        # Send the action JSON
+                                                        # Send action JSON
                                                         yield json.dumps({
                                                             "action": {
                                                                 "type": action_type,
@@ -441,60 +451,16 @@ async def stream_ollama_response(prompt: str, is_chat: bool = True, query: str =
                                                                 "duration": duration
                                                             }
                                                         }) + "\n"
-
-                                                        # Send any text that came after the duration
-                                                        if remaining_text:
-                                                            yield json.dumps({"message": {"content": remaining_text}}) + "\n"
                                                     else:
-                                                        # Could not extract duration
-                                                        print(f"[ACTION] Could not extract duration from: {duration_and_text[:100]}")
+                                                        print(f"[ACTION PARSER] ✗ Could not extract duration from: {duration_str}")
                                                 else:
-                                                    # Log invalid format for debugging
-                                                    print(f"[ACTION] Invalid format - expected 4 parts, got {len(action_tokens)}: {action_part[:100]}")
+                                                    print(f"[ACTION PARSER] ✗ Invalid format - got {len(action_tokens)} parts: {action_line}")
                                             except Exception as e:
-                                                # CRITICAL: Log parse failures for debugging (no more silent drops!)
-                                                print(f"[ACTION] Parse error: {e} | Raw: {action_part[:100]}")
-                                    else:
-                                        # Normal text chunk - accumulate for potential fallback injection
-                                        if content:
-                                            accumulated_text += content
-                                            yield json.dumps({"message": {"content": content}}) + "\n"
-                                        else:
-                                            yield json.dumps(data) + "\n"
-                                else:
-                                    # No message content - check if this is the done signal
-                                    print(f"[ACTION DEBUG] Stream done: {data.get('done')}, action_emitted: {action_emitted}, has_text: {bool(accumulated_text)}, has_query: {bool(query)}")
-                                    if data.get("done") and not action_emitted and accumulated_text and query:
-                                        # Response complete, no ACTION was emitted - try fallback injection
-                                        print(f"[ACTION DEBUG] Calling inject_action_if_missing...")
-                                        injected = inject_action_if_missing(accumulated_text, query)
-                                        if injected != accumulated_text:
-                                            # Injection happened - send the ACTION
-                                            action_part = injected.split("ACTION:")[1].strip()
-                                            try:
-                                                action_tokens = action_part.split(":", 3)
-                                                if len(action_tokens) >= 4:
-                                                    import re
-                                                    action_type = action_tokens[0].strip()
-                                                    zone = action_tokens[1].strip()
-                                                    selector = action_tokens[2].strip()
-                                                    duration_str = action_tokens[3].strip()
-                                                    duration_match = re.match(r'(\d+)', duration_str)
-                                                    duration = int(duration_match.group(1)) if duration_match else 2500
+                                                print(f"[ACTION PARSER] ✗ Parse error: {e} | Raw: {action_part[:100]}")
 
-                                                    yield json.dumps({
-                                                        "action": {
-                                                            "type": action_type,
-                                                            "zone": zone,
-                                                            "selector": selector,
-                                                            "duration": duration
-                                                        }
-                                                    }) + "\n"
-                                            except Exception as e:
-                                                print(f"[ACTION INJECTION] Parse error: {e}")
+                                    # Send done signal
+                                    yield json.dumps({"done": True}) + "\n"
 
-                                    # Forward done/other messages
-                                    yield json.dumps(data) + "\n"
                             except json.JSONDecodeError:
                                 continue
             else:
