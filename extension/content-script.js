@@ -34,22 +34,34 @@ ContentAgent.prototype.init = function () {
             (document.head || document.documentElement).appendChild(link);
 
             // Inject zones.js
+            // Inject styles.css first
+            var styleLink = document.createElement('link');
+            styleLink.rel = 'stylesheet';
+            styleLink.href = chrome.runtime.getURL('zoneguide/styles.css');
+            styleLink.onload = function () {
+                console.log('[Navigator] styles.css injected');
+            };
+            styleLink.onerror = function (e) {
+                console.error('[Navigator] Failed to load styles.css:', e);
+            };
+            (document.head || document.documentElement).appendChild(styleLink);
+
             var script1 = document.createElement('script');
             script1.src = chrome.runtime.getURL('zoneguide/zones.js');
-            script1.onload = function() {
+            script1.onload = function () {
                 console.log('[Navigator] zones.js injected');
                 // Inject index.js after zones.js loads
                 var script2 = document.createElement('script');
                 script2.src = chrome.runtime.getURL('zoneguide/index.js');
-                script2.onload = function() {
+                script2.onload = function () {
                     console.log('[Navigator] index.js injected');
                 };
-                script2.onerror = function(e) {
+                script2.onerror = function (e) {
                     console.error('[Navigator] Failed to load index.js:', e);
                 };
                 (document.head || document.documentElement).appendChild(script2);
             };
-            script1.onerror = function(e) {
+            script1.onerror = function (e) {
                 console.error('[Navigator] Failed to load zones.js:', e);
             };
             (document.head || document.documentElement).appendChild(script1);
@@ -91,7 +103,7 @@ ContentAgent.prototype.init = function () {
             // First check if zoneguide is ready by sending PING
             var pingTimeout = null;
 
-            var readyHandler = function(event) {
+            var readyHandler = function (event) {
                 if (event.source !== window) return;
 
                 // Received PONG - zoneguide is ready
@@ -103,7 +115,7 @@ ContentAgent.prototype.init = function () {
                     window.postMessage(req, '*');
 
                     // Listen for response
-                    var responseHandler = function(event) {
+                    var responseHandler = function (event) {
                         if (event.source !== window) return;
                         if (event.data && event.data.type === 'ZONEGUIDE_RESPONSE') {
                             window.removeEventListener('message', responseHandler);
@@ -117,13 +129,13 @@ ContentAgent.prototype.init = function () {
             window.addEventListener('message', readyHandler);
 
             // Send PING to check readiness
-            window.postMessage({type: 'ZONEGUIDE_PING'}, '*');
+            window.postMessage({ type: 'ZONEGUIDE_PING' }, '*');
 
             // Timeout after 1 second if no PONG received
-            pingTimeout = setTimeout(function() {
+            pingTimeout = setTimeout(function () {
                 window.removeEventListener('message', readyHandler);
                 console.error('[Navigator] ZoneGuide not ready - timeout');
-                sendResponse({error: 'ZoneGuide not loaded'});
+                sendResponse({ error: 'ZoneGuide not loaded' });
             }, 1000);
 
             return true; // Keep channel open for async response
