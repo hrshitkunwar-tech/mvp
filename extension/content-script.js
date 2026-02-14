@@ -20,6 +20,19 @@ ContentAgent.prototype.init = function () {
     // NEW: Inject ZoneGuide into page context (not isolated world)
     if (window.top === window && !window.__ZONEGUIDE_INJECTED__) {
         try {
+            // CRITICAL FIX: Inject CSS first (Chrome doesn't auto-inject content_scripts CSS reliably)
+            var link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.type = 'text/css';
+            link.href = chrome.runtime.getURL('zoneguide/styles.css');
+            link.onload = function() {
+                console.log('[Navigator] styles.css injected');
+            };
+            link.onerror = function(e) {
+                console.error('[Navigator] Failed to load styles.css:', e);
+            };
+            (document.head || document.documentElement).appendChild(link);
+
             // Inject zones.js
             var script1 = document.createElement('script');
             script1.src = chrome.runtime.getURL('zoneguide/zones.js');

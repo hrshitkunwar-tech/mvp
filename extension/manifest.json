@@ -47,7 +47,8 @@
     {
       "resources": [
         "zoneguide/zones.js",
-        "zoneguide/index.js"
+        "zoneguide/index.js",
+        "zoneguide/styles.css"
       ],
       "matches": [
         "<all_urls>"
