@@ -396,19 +396,23 @@ async def stream_ollama_response(prompt: str, is_chat: bool = True, query: str =
 
                                     if content and "ACTION:" in content:
                                         action_emitted = True  # Mark that we found ACTION
-                                        # Split text and action
+
+                                        # Split on ALL ACTION directives
                                         parts = content.split("ACTION:")
-                                        text_part = parts[0].strip()
-                                        action_part = parts[1].strip() if len(parts) > 1 else ""
 
-                                        # Send text first (if any)
-                                        if text_part:
-                                            yield json.dumps({"message": {"content": text_part}}) + "\n"
+                                        # Send text before first ACTION (if any)
+                                        if parts[0].strip():
+                                            yield json.dumps({"message": {"content": parts[0].strip()}}) + "\n"
 
-                                        # Parse and send action - ROBUST VERSION
-                                        if action_part:
+                                        # Process ALL ACTION directives (parts[1], parts[2], parts[3], ...)
+                                        import re
+                                        for i in range(1, len(parts)):
+                                            action_part = parts[i].strip()
+                                            if not action_part:
+                                                continue
+
                                             try:
-                                                # Split into max 4 parts: type:zone:selector:duration
+                                                # Split into max 4 parts: type:zone:selector:duration_and_text
                                                 # maxsplit=3 preserves colons in the selector (3rd part)
                                                 action_tokens = action_part.split(":", 3)
 
@@ -416,25 +420,34 @@ async def stream_ollama_response(prompt: str, is_chat: bool = True, query: str =
                                                     action_type = action_tokens[0].strip()
                                                     zone = action_tokens[1].strip()
                                                     selector = action_tokens[2].strip()
-                                                    duration_str = action_tokens[3].strip()
+                                                    duration_and_text = action_tokens[3].strip()
 
-                                                    # Extract duration (might have extra text after number)
-                                                    import re
-                                                    duration_match = re.match(r'(\d+)', duration_str)
-                                                    duration = int(duration_match.group(1)) if duration_match else 2500
+                                                    # Extract duration (number at start) and remaining text
+                                                    duration_match = re.match(r'(\d+)\s*(.*)', duration_and_text, re.DOTALL)
+                                                    if duration_match:
+                                                        duration = int(duration_match.group(1))
+                                                        remaining_text = duration_match.group(2).strip()
 
-                                                    # Log successful parse for debugging
-                                                    selector_preview = selector[:50] + "..." if len(selector) > 50 else selector
-                                                    print(f"[ACTION] Parsed: type={action_type}, zone={zone}, selector={selector_preview}, duration={duration}")
+                                                        # Log successful parse for debugging
+                                                        selector_preview = selector[:50] + "..." if len(selector) > 50 else selector
+                                                        print(f"[ACTION] Parsed: type={action_type}, zone={zone}, selector={selector_preview}, duration={duration}")
 
-                                                    yield json.dumps({
-                                                        "action": {
-                                                            "type": action_type,
-                                                            "zone": zone,
-                                                            "selector": selector,
-                                                            "duration": duration
-                                                        }
-                                                    }) + "\n"
+                                                        # Send the action JSON
+                                                        yield json.dumps({
+                                                            "action": {
+                                                                "type": action_type,
+                                                                "zone": zone,
+                                                                "selector": selector,
+                                                                "duration": duration
+                                                            }
+                                                        }) + "\n"
+
+                                                        # Send any text that came after the duration
+                                                        if remaining_text:
+                                                            yield json.dumps({"message": {"content": remaining_text}}) + "\n"
+                                                    else:
+                                                        # Could not extract duration
+                                                        print(f"[ACTION] Could not extract duration from: {duration_and_text[:100]}")
                                                 else:
                                                     # Log invalid format for debugging
                                                     print(f"[ACTION] Invalid format - expected 4 parts, got {len(action_tokens)}: {action_part[:100]}")
