@@ -9,15 +9,15 @@
 /* ========== ZONE OVERLAY (Progressive Disclosure Phase 1) ========== */
 
 .zg-zone-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 2147483646; /* Max z-index minus 1 (tooltips go on top) */
-  pointer-events: none; /* CRITICAL: Don't intercept any clicks */
-  opacity: 0;
-  animation: zg-zone-appear 0.4s ease-out forwards;
+position: fixed;
+top: 0;
+left: 0;
+right: 0;
+bottom: 0;
+z-index: 2147483646;
+pointer-events: none;
+opacity: 1;  /* Changed from 0 to 1 */
+animation: zg-zone-appear 0.4s ease-out forwards;
 }
 
 @keyframes zg-zone-appear {
