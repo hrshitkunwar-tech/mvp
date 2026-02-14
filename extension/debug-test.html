@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZoneGuide Debug Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background: #ff6b35;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #ff8555;
+        }
+        .log {
+            background: #f5f5f5;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>🔧 ZoneGuide Debug Test Page</h1>
+
+    <div class="test-section">
+        <h2>1. Check ZoneGuide API</h2>
+        <button onclick="checkAPI()">Check if ZoneGuide is loaded</button>
+        <div id="api-result" class="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Test Zone Visualization</h2>
+        <button onclick="testZone('center')">Show CENTER zone</button>
+        <button onclick="testZone('arc-tl')">Show TOP-LEFT zone</button>
+        <button onclick="testZone('arc-tr')">Show TOP-RIGHT zone</button>
+        <button onclick="testZone('arc-bl')">Show BOTTOM-LEFT zone</button>
+        <button onclick="testZone('arc-br')">Show BOTTOM-RIGHT zone</button>
+        <button onclick="hideZone()">Hide Zone</button>
+        <div id="zone-result" class="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Test Message Passing (Background → Content Script → Page)</h2>
+        <button onclick="testMessageFlow()">Test Message Flow</button>
+        <div id="message-result" class="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Test Element Detection</h2>
+        <p>Click this button to test element highlighting:</p>
+        <button id="test-button" onclick="testElementHighlight()">Test Button</button>
+        <div id="element-result" class="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Real-time Logs</h2>
+        <button onclick="clearLogs()">Clear Logs</button>
+        <div id="realtime-logs" class="log"></div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logs = document.getElementById('realtime-logs');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'success' ? 'success' : type === 'error' ? 'error' : 'info';
+            logs.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        function checkAPI() {
+            const result = document.getElementById('api-result');
+            result.innerHTML = '';
+
+            if (window.__ZONEGUIDE__) {
+                const state = window.__ZONEGUIDE__.getState();
+                result.innerHTML = `<div class="success">✓ ZoneGuide API is loaded!</div>`;
+                result.innerHTML += `<div>Version: ${state.version}</div>`;
+                result.innerHTML += `<div>Mode: ${state.mode}</div>`;
+                result.innerHTML += `<div>Initialized: ${state.initialized}</div>`;
+                log('✓ ZoneGuide API check passed', 'success');
+            } else {
+                result.innerHTML = `<div class="error">✗ ZoneGuide API not found!</div>`;
+                result.innerHTML += `<div>Check console for errors.</div>`;
+                log('✗ ZoneGuide API not found', 'error');
+            }
+        }
+
+        function testZone(zone) {
+            const result = document.getElementById('zone-result');
+
+            if (!window.__ZONEGUIDE__) {
+                result.innerHTML = `<div class="error">✗ ZoneGuide not loaded. Run API check first.</div>`;
+                return;
+            }
+
+            try {
+                window.__ZONEGUIDE__.test.showZone(zone, 3000);
+                result.innerHTML = `<div class="success">✓ Showing ${zone} zone for 3 seconds</div>`;
+                log(`✓ Zone ${zone} displayed`, 'success');
+            } catch (e) {
+                result.innerHTML = `<div class="error">✗ Error: ${e.message}</div>`;
+                log(`✗ Zone display failed: ${e.message}`, 'error');
+            }
+        }
+
+        function hideZone() {
+            if (window.__ZONEGUIDE__) {
+                window.__ZONEGUIDE__.test.hideZone();
+                document.getElementById('zone-result').innerHTML = `<div class="success">✓ Zone hidden</div>`;
+                log('✓ Zone hidden', 'success');
+            }
+        }
+
+        function testMessageFlow() {
+            const result = document.getElementById('message-result');
+            result.innerHTML = '<div class="info">Testing message flow...</div>';
+
+            // Listen for response from page context
+            let responseReceived = false;
+
+            function responseHandler(event) {
+                if (event.source !== window) return;
+                if (event.data && event.data.type === 'ZONEGUIDE_PONG') {
+                    window.removeEventListener('message', responseHandler);
+                    responseReceived = true;
+                    result.innerHTML = '<div class="success">✓ ZoneGuide responded to PING</div>';
+                    log('✓ Message flow test passed', 'success');
+                }
+            }
+
+            window.addEventListener('message', responseHandler);
+
+            // Send PING
+            window.postMessage({type: 'ZONEGUIDE_PING'}, '*');
+            log('Sent ZONEGUIDE_PING', 'info');
+
+            // Timeout check
+            setTimeout(() => {
+                if (!responseReceived) {
+                    window.removeEventListener('message', responseHandler);
+                    result.innerHTML = '<div class="error">✗ No response from ZoneGuide (timeout)</div>';
+                    log('✗ Message flow timeout', 'error');
+                }
+            }, 2000);
+        }
+
+        function testElementHighlight() {
+            const result = document.getElementById('element-result');
+            const testButton = document.getElementById('test-button');
+
+            if (!window.__ZONEGUIDE__) {
+                result.innerHTML = '<div class="error">✗ ZoneGuide not loaded</div>';
+                return;
+            }
+
+            // Get button's zone
+            const zone = window.__ZONEGUIDE__.getZone(testButton);
+            result.innerHTML = `<div class="success">✓ Button is in zone: ${zone}</div>`;
+            log(`✓ Element detected in zone: ${zone}`, 'success');
+
+            // Show zone
+            window.__ZONEGUIDE__.test.showZone(zone, 3000);
+
+            // Add pulse effect
+            testButton.classList.add('zg-element-pulse');
+            setTimeout(() => {
+                testButton.classList.remove('zg-element-pulse');
+            }, 3000);
+        }
+
+        function clearLogs() {
+            document.getElementById('realtime-logs').innerHTML = '';
+        }
+
+        // Listen for all window messages
+        window.addEventListener('message', (event) => {
+            if (event.source === window && event.data && event.data.type) {
+                if (event.data.type.startsWith('ZONEGUIDE_')) {
+                    log(`Received: ${event.data.type}`, 'info');
+                }
+            }
+        });
+
+        // Auto-run API check on load
+        window.addEventListener('load', () => {
+            setTimeout(checkAPI, 1000);
+        });
+    </script>
+</body>
+</html>

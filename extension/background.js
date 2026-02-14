@@ -218,6 +218,9 @@ function handleAction(action, tabId) {
  * @param {Object} action - Action object
  */
 function sendActionToTab(tabId, action) {
+  console.log('[Navigator] 📤 Sending action to tab:', tabId);
+  console.log('[Navigator] 📤 Zone:', action.zone, 'Selector:', action.selector, 'Duration:', action.duration);
+
   chrome.tabs.sendMessage(tabId, {
     type: 'ZONEGUIDE_SHOW_ZONE',
     payload: {
@@ -228,6 +231,7 @@ function sendActionToTab(tabId, action) {
   }, function(response) {
     if (chrome.runtime.lastError) {
       console.error('[Navigator] ✗ Action failed:', chrome.runtime.lastError.message);
+      console.error('[Navigator] ✗ Possible issue: Content script not loaded on tab', tabId);
     } else {
       console.log('[Navigator] ✓ Action executed successfully:', response);
     }
