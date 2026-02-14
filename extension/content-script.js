@@ -121,19 +121,24 @@ ContentAgent.prototype.init = function () {
 };
 
 ContentAgent.prototype.scanAndSend = function (reason) {
-    // Safety: Check if extension context is still valid
-    if (!chrome.runtime || !chrome.runtime.id) {
-        console.warn('[Navigator] Extension context invalidated. Stopping sensor.');
-        if (this.pollInterval) clearInterval(this.pollInterval);
-        return;
-    }
-
     try {
+        // Safety: Check if extension context is still valid
+        if (!chrome.runtime || !chrome.runtime.id) {
+            console.warn('[Navigator] Extension context invalidated. Stopping sensor.');
+            if (this.pollInterval) clearInterval(this.pollInterval);
+            return;
+        }
+
         var ctx = this.extractContext();
         chrome.runtime.sendMessage({ action: 'CONTEXT_UPDATED', payload: ctx, reason: reason });
     } catch (e) {
-        if (e.message.indexOf('context invalidated') > -1) {
+        // Context invalidated (extension reloaded or disabled)
+        if (e.message && (e.message.indexOf('context invalidated') > -1 || e.message.indexOf('Extension context') > -1)) {
+            console.warn('[Navigator] Extension context lost. Stopping sensor.');
             if (this.pollInterval) clearInterval(this.pollInterval);
+        } else {
+            // Other error - log but don't crash
+            console.warn('[Navigator] Scan error:', e.message);
         }
     }
 };
