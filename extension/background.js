@@ -30,6 +30,28 @@ chrome.runtime.onInstalled.addListener(function () {
   }
 });
 
+// Handle keyboard commands
+chrome.commands.onCommand.addListener(function(command) {
+  if (command === 'toggle-zoneguide-recording') {
+    console.log('[Navigator] Toggle recording shortcut triggered');
+
+    // Get active tab and send message to toggle recording
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      if (tabs[0]) {
+        chrome.tabs.sendMessage(tabs[0].id, {
+          action: 'toggleRecording'
+        }, function(response) {
+          if (chrome.runtime.lastError) {
+            console.error('[Navigator] Recording toggle failed:', chrome.runtime.lastError.message);
+          } else {
+            console.log('[Navigator] Recording toggled:', response);
+          }
+        });
+      }
+    });
+  }
+});
+
 chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
   if (request.action === 'CONTEXT_UPDATED' && sender.tab) {
     var tid = sender.tab.id;
@@ -38,6 +60,13 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
   } else if (request.action === 'GET_DEBUG_CONTEXT') {
     sendResponse({ context: tabContexts[request.tabId] });
     return true;
+  } else if (request.action === 'recordingStarted') {
+    console.log('[Navigator] Recording started:', request.workflow);
+    sendResponse({ status: 'ok' });
+  } else if (request.action === 'recordingStopped') {
+    console.log('[Navigator] Recording stopped:', request.workflow);
+    // TODO: Sync workflow to Convex backend
+    sendResponse({ status: 'ok' });
   }
   return true;
 });

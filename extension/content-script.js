@@ -33,26 +33,34 @@ ContentAgent.prototype.init = function () {
             };
             (document.head || document.documentElement).appendChild(link);
 
-            // Inject zones.js
-            var script1 = document.createElement('script');
-            script1.src = chrome.runtime.getURL('zoneguide/zones.js');
-            script1.onload = function() {
-                console.log('[Navigator] zones.js injected');
-                // Inject index.js after zones.js loads
-                var script2 = document.createElement('script');
-                script2.src = chrome.runtime.getURL('zoneguide/index.js');
-                script2.onload = function() {
-                    console.log('[Navigator] index.js injected');
+            // Inject ZoneGuide scripts in sequence
+            var scripts = [
+                'zoneguide/zones.js',
+                'zoneguide/index.js',
+                'zoneguide/selector.js',
+                'zoneguide/storage.js',
+                'zoneguide/recorder.js'
+            ];
+
+            function injectNext(index) {
+                if (index >= scripts.length) {
+                    console.log('[Navigator] All ZoneGuide scripts loaded');
+                    return;
+                }
+
+                var script = document.createElement('script');
+                script.src = chrome.runtime.getURL(scripts[index]);
+                script.onload = function() {
+                    console.log('[Navigator] ' + scripts[index] + ' injected');
+                    injectNext(index + 1);
                 };
-                script2.onerror = function(e) {
-                    console.error('[Navigator] Failed to load index.js:', e);
+                script.onerror = function(e) {
+                    console.error('[Navigator] Failed to load ' + scripts[index] + ':', e);
                 };
-                (document.head || document.documentElement).appendChild(script2);
-            };
-            script1.onerror = function(e) {
-                console.error('[Navigator] Failed to load zones.js:', e);
-            };
-            (document.head || document.documentElement).appendChild(script1);
+                (document.head || document.documentElement).appendChild(script);
+            }
+
+            injectNext(0);
             window.__ZONEGUIDE_INJECTED__ = true;
         } catch (e) {
             console.error('[Navigator] ZoneGuide injection error:', e);

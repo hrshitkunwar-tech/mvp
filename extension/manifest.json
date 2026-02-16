@@ -48,6 +48,9 @@
       "resources": [
         "zoneguide/zones.js",
         "zoneguide/index.js",
+        "zoneguide/selector.js",
+        "zoneguide/storage.js",
+        "zoneguide/recorder.js",
         "zoneguide/styles.css"
       ],
       "matches": [
