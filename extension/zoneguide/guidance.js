@@ -258,6 +258,8 @@
     spotlight.style.width = `${rect.width}px`;
     spotlight.style.height = `${rect.height}px`;
     spotlight.style.display = 'block';
+    spotlight.style.opacity = '1';
+    spotlight.style.transform = 'scale(1)';
 
     // Animate in
     setTimeout(() => {
@@ -302,6 +304,8 @@
     arrow.dataset.position = position;
     positionArrow(element, position);
     arrow.style.display = 'block';
+    arrow.style.opacity = '1';
+    arrow.style.transform = 'translateY(0)';
 
     // Animate in
     setTimeout(() => {
@@ -392,6 +396,8 @@
     tooltip.dataset.position = arrowPosition;
     positionTooltip(element, arrowPosition);
     tooltip.style.display = 'block';
+    tooltip.style.opacity = '1';
+    tooltip.style.transform = 'translateY(0) scale(1)';
 
     // Animate in
     setTimeout(() => {
