@@ -11,8 +11,9 @@
 <body>
 
     <header>
-        <div class="logo">🧭 Navigator</div>
+        <div class="logo">🧭 Navigator <span id="recording-badge" class="hidden">REC</span></div>
         <div class="actions">
+            <button id="btn-record" aria-label="Record Action" title="Record my actions" class="record-off">●</button>
             <button id="btn-debug" aria-label="Debug" title="Toggle Context Inspector">🐞</button>
             <button id="btn-settings" aria-label="Settings">⚙️</button>
         </div>
@@ -21,6 +22,18 @@
     <div id="settings-panel" class="hidden">
         <h3>Configuration</h3>
         <p class="hint">Navigator is now powered by Unified Brain Bridge.</p>
+
+        <div class="setting-item">
+            <div class="setting-text">
+                <span class="setting-label">Visual Overlays</span>
+                <span class="setting-desc">Enable on-page highlighting</span>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="toggle-overlays" checked>
+                <span class="slider round"></span>
+            </label>
+        </div>
+
         <button id="btn-save-key">CONNECTED TO PORT 8000 (v2.0.4)</button>
 
         <div class="settings-row">
@@ -60,6 +73,34 @@
     <div id="chat-container">
         <div class="message ai">
             Hello! I'm reading the page. Ask me anything.
+        </div>
+    </div>
+
+    <div id="playback-panel" class="hidden">
+        <div class="playback-header">
+            <span id="playback-title">Playing Workflow</span>
+            <button id="btn-stop-playback">✕</button>
+        </div>
+        <div class="playback-body">
+            <div id="step-instruction">Follow the on-screen guide.</div>
+            <div class="playback-progress">
+                <div id="progress-bar"></div>
+            </div>
+            <div class="playback-controls">
+                <button id="btn-prev-step" disabled>Previous</button>
+                <span id="step-count">1 / 5</span>
+                <button id="btn-next-step">Next</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="navigation-prompt" class="hidden">
+        <div class="prompt-content">
+            <p>Would you like to navigate on-screen?</p>
+            <div class="prompt-actions">
+                <button id="btn-nav-yes" class="btn-primary">Yes, Guide Me</button>
+                <button id="btn-nav-no" class="btn-secondary">No, Thanks</button>
+            </div>
         </div>
     </div>
 

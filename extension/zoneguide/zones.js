@@ -11,7 +11,7 @@
  * Loaded as classic script (no ES6 modules) for MV3 content script compatibility.
  */
 
-(function() {
+(function () {
   'use strict';
 
   var ZONES = Object.freeze({
@@ -78,9 +78,9 @@
 
     // Auto-remove after duration (if specified)
     if (duration > 0) {
-      setTimeout(function() {
+      setTimeout(function () {
         overlay.classList.add('zg-zone-fade-out');
-        setTimeout(function() {
+        setTimeout(function () {
           if (overlay.parentNode) {
             overlay.remove();
           }
@@ -96,11 +96,106 @@
    */
   function hideZoneHeatmap() {
     var overlays = document.querySelectorAll('.zg-zone-overlay');
-    overlays.forEach(function(overlay) {
-      if (overlay.parentNode) {
-        overlay.remove();
-      }
+    overlays.forEach(function (overlay) {
+      overlay.classList.add('zg-zone-fade-out');
+      setTimeout(function () {
+        if (overlay.parentNode) overlay.remove();
+      }, 500);
     });
+  }
+
+  /**
+   * Show a visual tooltip near an element.
+   *
+   * @param {Element} element - Target element
+   * @param {string} text - Instruction text
+   */
+  function showTooltip(element, text) {
+    hideTooltip();
+
+    var rect = element.getBoundingClientRect();
+    var tooltip = document.createElement('div');
+    tooltip.className = 'zg-tooltip';
+    tooltip.textContent = text;
+    tooltip.style.left = (rect.left + window.scrollX) + 'px';
+    tooltip.style.top = (rect.top + window.scrollY - 10) + 'px'; // Above the element
+
+    document.body.appendChild(tooltip);
+
+    // Add arrow
+    var arrow = document.createElement('div');
+    arrow.className = 'zg-tooltip-arrow';
+    tooltip.appendChild(arrow);
+  }
+
+  function hideTooltip() {
+    var existing = document.querySelector('.zg-tooltip');
+    if (existing) existing.remove();
+  }
+
+  /**
+   * Show a 'pointer arrow' animation that points to an element.
+   *
+   * @param {string} zone - Source zone identifier (determines approach angle)
+   * @param {Element} element - Target element
+   * @param {number} duration - How long to show (ms)
+   */
+  function showPointerArrow(zone, element, duration) {
+    if (typeof duration === 'undefined') duration = 3000;
+
+    // Remove existing pointers
+    var existing = document.querySelectorAll('.zg-pointer-arrow');
+    existing.forEach(function (el) { el.remove(); });
+
+    var start = getZoneCenter(zone);
+    var targetRect = element.getBoundingClientRect();
+
+    // Calculate position: Point AT the element from the direction of the zone
+    // e.g. if Zone is TL, arrow points from TL towards element
+
+    var endX = targetRect.left + (targetRect.width / 2);
+    var endY = targetRect.top + (targetRect.height / 2);
+
+    // Vector from zone center to element center
+    var vecX = endX - (start.x * window.innerWidth);
+    var vecY = endY - (start.y * window.innerHeight);
+
+    // Normalize vector
+    var len = Math.sqrt(vecX * vecX + vecY * vecY);
+    var dirX = vecX / len;
+    var dirY = vecY / len;
+
+    // Position arrow 60px away from element center, pointing at it
+    var arrowDist = 60;
+    var arrowX = endX - (dirX * arrowDist);
+    var arrowY = endY - (dirY * arrowDist);
+
+    // Angle for rotation
+    var angle = Math.atan2(dirY, dirX) * 180 / Math.PI;
+
+    var arrow = document.createElement('div');
+    arrow.className = 'zg-pointer-arrow';
+
+    // Center the 40x40 arrow
+    var offset = 20;
+
+    arrow.style.left = (arrowX - offset) + 'px';
+    arrow.style.top = (arrowY - offset) + 'px';
+    arrow.style.transform = 'rotate(' + (angle + 90) + 'deg)';
+
+    arrow.innerHTML = `
+      <svg viewBox="0 0 24 24" class="zg-pointer-arrow-icon" fill="currentColor">
+        <path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z" />
+      </svg>
+    `;
+
+    document.body.appendChild(arrow);
+
+    if (duration > 0) {
+      setTimeout(function () {
+        if (arrow.parentNode) arrow.remove();
+      }, duration);
+    }
   }
 
   /**
@@ -112,11 +207,11 @@
    */
   function getZoneCenter(zone) {
     var centers = {
-      'center':  { x: 0.5, y: 0.5 },
-      'arc-tl':  { x: 0.25, y: 0.25 },
-      'arc-tr':  { x: 0.75, y: 0.25 },
-      'arc-bl':  { x: 0.25, y: 0.75 },
-      'arc-br':  { x: 0.75, y: 0.75 }
+      'center': { x: 0.5, y: 0.5 },
+      'arc-tl': { x: 0.1, y: 0.1 },
+      'arc-tr': { x: 0.9, y: 0.1 },
+      'arc-bl': { x: 0.1, y: 0.9 },
+      'arc-br': { x: 0.9, y: 0.9 }
     };
 
     return centers[zone] || { x: 0.5, y: 0.5 };
@@ -148,7 +243,7 @@
    * @returns {Promise<void>}
    */
   function scrollToElement(element) {
-    return new Promise(function(resolve) {
+    return new Promise(function (resolve) {
       // Check if already in view
       if (isElementInViewport(element)) {
         resolve();
@@ -175,7 +270,10 @@
     hideZoneHeatmap: hideZoneHeatmap,
     getZoneCenter: getZoneCenter,
     isElementInViewport: isElementInViewport,
-    scrollToElement: scrollToElement
+    scrollToElement: scrollToElement,
+    showTooltip: showTooltip,
+    hideTooltip: hideTooltip,
+    showPointerArrow: showPointerArrow
   };
 
   console.log('[ZoneGuide] zones.js loaded');

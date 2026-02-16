@@ -8,7 +8,7 @@
  * Loaded as classic script (no ES6 modules) for MV3 content script compatibility.
  */
 
-(function() {
+(function () {
   'use strict';
 
   // Wait for zones.js to load
@@ -39,7 +39,7 @@
     state.initialized = true;
 
     // Listen for messages via window.postMessage (from content-script bridge)
-    window.addEventListener('message', function(event) {
+    window.addEventListener('message', function (event) {
       // Only accept messages from same origin
       if (event.source !== window) return;
 
@@ -50,12 +50,12 @@
 
       // Readiness check - respond to PING with PONG
       if (message.type === 'ZONEGUIDE_PING') {
-        window.postMessage({type: 'ZONEGUIDE_PONG'}, '*');
+        window.postMessage({ type: 'ZONEGUIDE_PONG' }, '*');
         return;
       }
 
       // Call handleMessage with mock sender and response callback
-      handleMessage(message, {}, function(response) {
+      handleMessage(message, {}, function (response) {
         // Send response back to content script
         window.postMessage({
           type: 'ZONEGUIDE_RESPONSE',
@@ -89,61 +89,110 @@
       case 'ZONEGUIDE_SHOW_ZONE':
         if (message.payload && message.payload.zone) {
           var zone = message.payload.zone;
-          var duration = message.payload.duration || 2500;
+          var duration = typeof message.payload.duration !== 'undefined' ? message.payload.duration : 2500;
           var selector = message.payload.selector;
-          var instructionText = message.payload.message;
+          var instruction = message.payload.instruction;
 
           // If selector provided, try to highlight specific element
           if (selector) {
             try {
-              var element = document.querySelector(selector);
+              var element = null;
+              try {
+                element = document.querySelector(selector);
+              } catch (e) {
+                // Selector failed (likely invalid syntax from LLM). Try to auto-fix.
+                console.warn('[ZoneGuide] Invalid selector:', selector, 'Trying fixes...');
 
-              if (element) {
-                // Check if enhanced guidance is available
-                var useEnhancedGuidance = window.__ZONEGUIDE_GUIDANCE__ && message.payload.useSpotlight !== false;
+                // Fix 1: attribute="value" -> [attribute="value"]
+                if (selector.indexOf('=') > 0 && !selector.startsWith('[')) {
+                  try { element = document.querySelector('[' + selector + ']'); } catch (err) { }
+                }
 
-                // Scroll element into view if needed
-                if (!zones.isElementInViewport(element)) {
-                  zones.scrollToElement(element).then(function() {
-                    if (useEnhancedGuidance) {
-                      // Use new spotlight + arrow guidance
-                      window.__ZONEGUIDE_GUIDANCE__.show(element, {
-                        message: instructionText,
-                        duration: duration,
-                        arrowPosition: 'auto',
-                        hideOnClick: true
-                      });
-                    } else {
-                      // Fallback to zone heatmap + pulse
-                      zones.showZoneHeatmap(zone, duration);
-                      element.classList.add('zg-element-pulse');
-                      setTimeout(function() {
-                        element.classList.remove('zg-element-pulse');
-                      }, duration);
-                    }
-                  });
-                } else {
-                  // Element already visible
-                  if (useEnhancedGuidance) {
-                    // Use new spotlight + arrow guidance
-                    window.__ZONEGUIDE_GUIDANCE__.show(element, {
-                      message: instructionText,
-                      duration: duration,
-                      arrowPosition: 'auto',
-                      hideOnClick: true
-                    });
-                  } else {
-                    // Fallback to zone heatmap + pulse
-                    zones.showZoneHeatmap(zone, duration);
-                    element.classList.add('zg-element-pulse');
-                    setTimeout(function() {
-                      element.classList.remove('zg-element-pulse');
-                    }, duration);
+                // Fix 3: AGGRESSIVE FALLBACK - Extract value from any selector like [x="val"] or x="val"
+                if (!element && selector.indexOf('=') > 0) {
+                  // Extract "issues-tab" from 'data-tab-item="issues-tab"'
+                  var match = selector.match(/=["']?([^"']+)["']?/);
+                  if (match && match[1]) {
+                    var val = match[1];
+                    console.log('[ZoneGuide] Selector fallback: trying #' + val);
+                    try { element = document.querySelector('#' + val); } catch (err) { }
+                    if (!element) try { element = document.querySelector('.' + val); } catch (err) { }
+                    if (!element) try { element = document.querySelector('[id*="' + val + '"]'); } catch (err) { }
                   }
                 }
 
-                sendResponse({ success: true, found_element: true, enhanced_guidance: useEnhancedGuidance });
-                break;
+                // Fix 4: ULTIMATE FALLBACK - Text Content Search
+                if (!element) {
+                  // Clean selector to get potential text (e.g. "Issues")
+                  // If selector was 'data-tab="issues"', val is "issues".
+                  // If selector was "Issues", we use that.
+                  var textToFind = selector.replace(/[^a-zA-Z0-9 ]/g, " ").trim();
+                  // If extract from attribute failed, use raw selector if it looks like text
+                  if (match && match[1]) textToFind = match[1];
+
+                  if (textToFind.length > 2) {
+                    console.log('[ZoneGuide] Text fallback: searching for "' + textToFind + '"');
+                    // Search specific tags first
+                    var candidates = document.querySelectorAll('a, button, span, div[role="button"], li');
+                    for (var i = 0; i < candidates.length; i++) {
+                      if (candidates[i].textContent.trim().toLowerCase() === textToFind.toLowerCase()) {
+                        element = candidates[i];
+                        break;
+                      }
+                      // Partial match for longer text
+                      if (candidates[i].textContent.trim().toLowerCase().includes(textToFind.toLowerCase()) && candidates[i].textContent.length < 50) {
+                        element = candidates[i];
+                        // Continue searching for exact match, but keep this as backup? No, first decent match.
+                        break;
+                      }
+                    }
+                  }
+                }
+
+                // Fix 2: "some-id" -> "#some-id" (if it looks like an ID)
+                if (!element && /^[a-zA-Z0-9-_]+$/.test(selector)) {
+                  try { element = document.querySelector('#' + selector); } catch (err) { }
+                  if (!element) try { element = document.querySelector('.' + selector); } catch (err) { }
+                }
+              }
+
+              if (element) {
+                // AUTO-DETECT ZONE from actual element position (Fixes LLM hallucination)
+                var realZone = zones.getZone(element);
+                console.log('[ZoneGuide] Auto-detected zone:', realZone, 'for', selector);
+                zone = realZone; // Override the passed zone
+
+                // Scroll element into view if needed
+                (zones.isElementInViewport(element) ? Promise.resolve() : zones.scrollToElement(element)).then(function () {
+                  // Show zone overlay after scroll
+                  zones.showZoneHeatmap(zone, duration);
+
+                  // NEW: Show persistent pointer arrow
+                  zones.showPointerArrow(zone, element, duration);
+
+                  // Clear previous effects
+                  document.querySelectorAll('.zg-element-highlight').forEach(function (el) {
+                    el.classList.remove('zg-element-highlight');
+                  });
+
+                  // Add element highlight (boundary box)
+                  element.classList.add('zg-element-highlight');
+
+                  // Show tooltip if instruction provided
+                  if (instruction) {
+                    zones.showTooltip(element, instruction);
+                  }
+
+                  if (duration > 0) {
+                    setTimeout(function () {
+                      element.classList.remove('zg-element-highlight');
+                      zones.hideTooltip();
+                    }, duration);
+                  }
+                });
+
+                sendResponse({ success: true, found_element: true });
+                return true;
               }
             } catch (e) {
               console.warn('[ZoneGuide] Selector failed:', selector, e);
@@ -160,6 +209,18 @@
 
       case 'ZONEGUIDE_HIDE_ZONE':
         zones.hideZoneHeatmap();
+        zones.hideTooltip();
+
+        // Remove pointers
+        var pointers = document.querySelectorAll('.zg-pointer-arrow');
+        pointers.forEach(function (el) { el.remove(); });
+
+        document.querySelectorAll('.zg-element-highlight').forEach(function (el) {
+          el.classList.remove('zg-element-highlight');
+        });
+        document.querySelectorAll('.zg-element-pulse').forEach(function (el) {
+          el.classList.remove('zg-element-pulse');
+        });
         sendResponse({ success: true });
         break;
 
@@ -183,7 +244,7 @@
     scrollToElement: zones.scrollToElement,
 
     // State access
-    getState: function() {
+    getState: function () {
       return {
         mode: state.mode,
         version: state.version,
@@ -196,36 +257,14 @@
 
     // Test helpers (for DevTools console testing)
     test: {
-      showZone: function(zone, duration) {
+      showZone: function (zone, duration) {
         return zones.showZoneHeatmap(zone, duration);
       },
-      hideZone: function() {
+      hideZone: function () {
         return zones.hideZoneHeatmap();
       },
-      getElementZone: function(element) {
+      getElementZone: function (element) {
         return zones.getZone(element);
-      },
-      // Enhanced guidance testing
-      spotlightElement: function(selector, message, duration) {
-        if (window.__ZONEGUIDE_GUIDANCE__) {
-          var element = typeof selector === 'string' ? document.querySelector(selector) : selector;
-          if (element) {
-            window.__ZONEGUIDE_GUIDANCE__.show(element, {
-              message: message || 'Click here',
-              duration: duration || 5000,
-              arrowPosition: 'auto'
-            });
-          } else {
-            console.warn('[ZoneGuide] Element not found:', selector);
-          }
-        } else {
-          console.warn('[ZoneGuide] Enhanced guidance not loaded');
-        }
-      },
-      hideSpotlight: function() {
-        if (window.__ZONEGUIDE_GUIDANCE__) {
-          window.__ZONEGUIDE_GUIDANCE__.hide();
-        }
       }
     }
   };

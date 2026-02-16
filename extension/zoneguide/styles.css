@@ -16,13 +16,19 @@
   bottom: 0;
   z-index: 2147483646;
   pointer-events: none;
-  opacity: 0;
+  opacity: 1;
+  /* Changed from 0 to 1 */
   animation: zg-zone-appear 0.4s ease-out forwards;
 }
 
 @keyframes zg-zone-appear {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .zg-zone-fade-out {
@@ -30,80 +36,153 @@
 }
 
 @keyframes zg-zone-disappear {
-  from { opacity: 1; }
-  to   { opacity: 0; }
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
 }
 
-/* Zone-specific radial gradients (orange heatmap) */
+/* Zone-specific radial gradients (Directional Beam system) */
 
-.zg-zone-center {
-  background: radial-gradient(
-    ellipse at 50% 50%,
-    rgba(255, 107, 53, 0.30) 0%,
-    rgba(255, 107, 53, 0.10) 30%,
-    transparent 60%
-  );
+.zg-zone-overlay {
+  will-change: opacity, transform;
 }
 
-.zg-zone-arc-tl {
-  background: radial-gradient(
-    ellipse at 0% 0%,
-    rgba(255, 107, 53, 0.35) 0%,
-    rgba(255, 107, 53, 0.10) 40%,
-    transparent 70%
-  );
-}
-
-.zg-zone-arc-tr {
-  background: radial-gradient(
-    ellipse at 100% 0%,
-    rgba(255, 107, 53, 0.35) 0%,
-    rgba(255, 107, 53, 0.10) 40%,
-    transparent 70%
-  );
-}
-
-.zg-zone-arc-bl {
-  background: radial-gradient(
-    ellipse at 0% 100%,
-    rgba(255, 107, 53, 0.35) 0%,
-    rgba(255, 107, 53, 0.10) 40%,
-    transparent 70%
-  );
-}
-
-.zg-zone-arc-br {
-  background: radial-gradient(
-    ellipse at 100% 100%,
-    rgba(255, 107, 53, 0.35) 0%,
-    rgba(255, 107, 53, 0.10) 40%,
-    transparent 70%
-  );
-}
-
-
-/* ========== ELEMENT HIGHLIGHT (Progressive Disclosure Phase 2) ========== */
-
-.zg-element-highlight {
-  position: fixed; /* Fixed to viewport, not document */
-  z-index: 2147483647; /* Maximum z-index */
-  pointer-events: none;
-  border: 3px solid rgba(255, 107, 53, 0.9);
-  border-radius: 6px;
-  box-shadow: 0 0 0 0 rgba(255, 107, 53, 0.4);
-  animation: zg-pulse 1.5s ease-in-out infinite;
-  will-change: transform, box-shadow; /* Optimize for animation */
-}
-
-@keyframes zg-pulse {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(255, 107, 53, 0.4);
+@keyframes zg-beam-pulse {
+  0% {
+    opacity: 0.8;
     transform: scale(1);
   }
+
   50% {
-    box-shadow: 0 0 20px 8px rgba(255, 107, 53, 0.15);
+    opacity: 1;
     transform: scale(1.02);
   }
+
+  100% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+}
+
+.zg-zone-arc-tl,
+.zg-zone-arc-tr,
+.zg-zone-arc-bl,
+.zg-zone-arc-br,
+.zg-zone-center {
+  animation: zg-zone-appear 0.4s ease-out forwards, zg-beam-pulse 2s ease-in-out infinite;
+}
+
+/* Zone-specific Spotlight Beams (Conic Gradients) */
+
+.zg-zone-center {
+  background: radial-gradient(circle at center,
+      rgba(255, 107, 53, 0.4) 0%,
+      rgba(255, 107, 53, 0.1) 40%,
+      transparent 70%);
+}
+
+/* Top-Left Beam (0,0) -> Points SE (~135deg) */
+.zg-zone-arc-tl {
+  background: conic-gradient(from 0deg at 0% 0%,
+      transparent 115deg,
+      rgba(255, 107, 53, 0.4) 125deg,
+      rgba(255, 107, 53, 0.8) 135deg,
+      rgba(255, 107, 53, 0.4) 145deg,
+      transparent 155deg);
+  filter: blur(5px);
+  /* Sharper beam */
+  opacity: 0.95;
+}
+
+/* Top-Right Beam (100,0) -> Points SW (~225deg) */
+.zg-zone-arc-tr {
+  background: conic-gradient(from 0deg at 100% 0%,
+      transparent 205deg,
+      rgba(255, 107, 53, 0.4) 215deg,
+      rgba(255, 107, 53, 0.8) 225deg,
+      rgba(255, 107, 53, 0.4) 235deg,
+      transparent 245deg);
+  filter: blur(5px);
+  opacity: 0.95;
+}
+
+/* Bottom-Left Beam (0,100) -> Points NE (~45deg) */
+.zg-zone-arc-bl {
+  background: conic-gradient(from 0deg at 0% 100%,
+      transparent 25deg,
+      rgba(255, 107, 53, 0.4) 35deg,
+      rgba(255, 107, 53, 0.8) 45deg,
+      rgba(255, 107, 53, 0.4) 55deg,
+      transparent 65deg);
+  filter: blur(5px);
+  opacity: 0.95;
+}
+
+/* Bottom-Right Beam (100,100) -> Points NW (~315deg) */
+.zg-zone-arc-br {
+  background: conic-gradient(from 0deg at 100% 100%,
+      transparent 295deg,
+      rgba(255, 107, 53, 0.4) 305deg,
+      rgba(255, 107, 53, 0.8) 315deg,
+      rgba(255, 107, 53, 0.4) 325deg,
+      transparent 335deg);
+  filter: blur(5px);
+  opacity: 0.95;
+}
+
+
+/* ========== ELEMENT HIGHLIGHT (Boundary Line Box - "Target Circle") ========== */
+
+.zg-element-highlight {
+  position: fixed;
+  z-index: 2147483647 !important;
+  /* Maximum z-index */
+  pointer-events: none !important;
+  /* Use thick visible outline for boundary box effect */
+  outline: 6px solid #ff6b35 !important;
+  outline-offset: 6px !important;
+  border-radius: 9999px !important;
+  /* Force Pill/Circle Shape */
+  box-shadow: 0 0 0 6px rgba(255, 107, 53, 0.3), 0 0 40px rgba(255, 107, 53, 0.8) !important;
+  animation: zg-boundary-pulse 1s infinite ease-in-out !important;
+  background: rgba(255, 107, 53, 0.1) !important;
+}
+
+@keyframes zg-boundary-pulse {
+  0% {
+    outline-color: rgba(255, 107, 53, 1);
+    outline-offset: 6px;
+    box-shadow: 0 0 0 6px rgba(255, 107, 53, 0.3), 0 0 20px rgba(255, 107, 53, 0.4);
+  }
+
+  50% {
+    outline-color: rgba(255, 140, 53, 0.8);
+    outline-offset: 10px;
+    /* Pulse outwards */
+    box-shadow: 0 0 0 10px rgba(255, 107, 53, 0.1), 0 0 40px rgba(255, 107, 53, 0.7);
+  }
+
+  100% {
+    outline-color: rgba(255, 107, 53, 1);
+    outline-offset: 6px;
+    box-shadow: 0 0 0 6px rgba(255, 107, 53, 0.3), 0 0 20px rgba(255, 107, 53, 0.4);
+  }
+}
+
+.zg-element-pulse {
+  /* Inherit the same strong style */
+  animation: zg-boundary-pulse 1.5s infinite ease-in-out !important;
+  outline: 6px solid #ff6b35 !important;
+  outline-offset: 6px !important;
+  border-radius: 9999px !important;
+  box-shadow: 0 0 0 6px rgba(255, 107, 53, 0.3) !important;
+  position: relative !important;
+  z-index: 999999 !important;
+  background: rgba(255, 107, 53, 0.15) !important;
 }
 
 
@@ -160,7 +239,8 @@
   top: 16px;
   right: 16px;
   z-index: 2147483647;
-  pointer-events: auto; /* This one IS clickable (skip/exit buttons) */
+  pointer-events: auto;
+  /* This one IS clickable (skip/exit buttons) */
   background: #1a1a2e;
   color: #ffffff;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
@@ -219,16 +299,18 @@
 }
 
 @keyframes zg-success {
-  0%   {
+  0% {
     opacity: 1;
     transform: scale(1);
     box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5);
   }
-  50%  {
+
+  50% {
     opacity: 0.8;
     transform: scale(1.05);
     box-shadow: 0 0 20px 10px rgba(34, 197, 94, 0.3);
   }
+
   100% {
     opacity: 0;
     transform: scale(1.1);
@@ -244,10 +326,23 @@
 }
 
 @keyframes zg-shake {
-  0%, 100% { transform: translateX(0); }
-  25%      { transform: translateX(-5px); }
-  50%      { transform: translateX(5px); }
-  75%      { transform: translateX(-5px); }
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  25% {
+    transform: translateX(-5px);
+  }
+
+  50% {
+    transform: translateX(5px);
+  }
+
+  75% {
+    transform: translateX(-5px);
+  }
 }
 
 .zg-nudge-message {
@@ -273,6 +368,7 @@
     opacity: 0;
     transform: translate(-50%, -50%) scale(0.9);
   }
+
   to {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
@@ -318,8 +414,15 @@
 }
 
 @keyframes zg-blink {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.3; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
 }
 
 
@@ -400,308 +503,171 @@
 }
 
 @keyframes zg-pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     outline-color: rgba(255, 140, 0, 0.8);
     box-shadow: 0 0 0 4px rgba(255, 140, 0, 0.3);
   }
+
   50% {
     outline-color: rgba(255, 180, 0, 1);
     box-shadow: 0 0 0 8px rgba(255, 180, 0, 0.5);
   }
 }
 
-
-/* ========== RECORDING INDICATOR (Phase 2: Recording) ========== */
-
-.zg-recording-indicator {
-  position: fixed;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
+/* Tooltip */
+.zg-tooltip {
+  position: absolute;
   z-index: 2147483647;
-  background: rgba(220, 38, 38, 0.95);
-  backdrop-filter: blur(10px);
-  color: #ffffff;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  background: #007aff;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 12px;
   font-size: 14px;
-  font-weight: 500;
-  padding: 12px 20px;
-  border-radius: 24px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  display: none;
+  font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  max-width: 250px;
+  transform: translateY(-100%);
+  pointer-events: none;
+  animation: zg-tooltip-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.zg-tooltip-arrow {
+  position: absolute;
+  bottom: -6px;
+  left: 20px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid #007aff;
+}
+
+/* ========== POINTER ARROW (Directs to specific element) ========== */
+
+.zg-pointer-arrow {
+  position: fixed;
+  z-index: 2147483647;
+  width: 40px;
+  height: 40px;
+  pointer-events: none;
+  display: flex;
   align-items: center;
-  gap: 12px;
-  pointer-events: auto;
-  animation: zg-tooltip-enter 0.3s ease-out;
+  justify-content: center;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+  animation: zg-pointer-bounce 1s infinite alternate ease-in-out;
+  color: #ff6b35;
 }
 
-.zg-rec-pulse {
-  width: 10px;
-  height: 10px;
-  background: #ffffff;
-  border-radius: 50%;
-  animation: zg-rec-blink 1.5s ease-in-out infinite;
+.zg-pointer-arrow-icon {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
 }
 
-@keyframes zg-rec-blink {
-  0%, 100% {
-    opacity: 1;
+@keyframes zg-pointer-bounce {
+  from {
+    transform: translate(0, 0) scale(1) rotate(var(--angle, 0deg));
+  }
+
+  to {
+    transform: translate(5px, 5px) scale(1.1) rotate(var(--angle, 0deg));
+  }
+
+  /* Note: Rotation is handled inline, but keyframe overrides transform. 
+     We need to handle rotation carefully. Actually, simpler to animate inner icon ?
+     No, let's just animate the margins or use a wrapper. 
+     Wait, the inline style sets transform: rotate(...). 
+     Keyframes will overwrite it. 
+     Better approach: Keyframe assumes starting state is handled by the browser if we omit 0%?
+     No, transform is tricky.
+     Let's use margin-top for bounce if rotation is applied to wrapper?
+     Or simpler: Apply rotation to the wrapper .zg-pointer-arrow, and apply bounce animation to the SVG icon itself.
+  */
+}
+
+/* Revised Pointer Animation Strategy */
+.zg-pointer-arrow {
+  /* Rotation set via inline style */
+}
+
+.zg-pointer-arrow-icon {
+  animation: zg-icon-bounce 0.6s infinite alternate ease-in-out;
+}
+
+@keyframes zg-icon-bounce {
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(-10px);
+  }
+
+  /* Bounce "back" relative to arrow direction? */
+  /* Actually, arrow points at 180deg usually. 
+     Let's just make it pulse in scale for simplicity and robustness. 
+  */
+  0% {
     transform: scale(1);
   }
-  50% {
-    opacity: 0.4;
-    transform: scale(0.8);
+
+  100% {
+    transform: scale(1.2);
   }
 }
 
-.zg-rec-text {
-  font-weight: 600;
-}
+/* ========== FLYING ARROW (Connects Zone to Element) ========== */
 
-.zg-rec-counter {
-  background: rgba(255, 255, 255, 0.2);
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.zg-rec-stop {
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
-  color: #ffffff;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  font-size: 12px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s;
-  margin-left: 4px;
-}
-
-.zg-rec-stop:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-
-/* ========== STEP BADGE (Numbered badges on clicks) ========== */
-
-.zg-step-badge {
-  position: fixed;
-  z-index: 2147483647;
-  background: rgba(255, 107, 53, 0.95);
-  color: #ffffff;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 16px;
-  font-weight: 700;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-  transform: translate(-50%, -50%);
-  box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4);
-  transition: all 0.4s ease-out;
-}
-
-
-/* ========== NOTIFICATION TOAST ========== */
-
-.zg-notification {
-  position: fixed;
-  top: 80px;
-  left: 50%;
-  transform: translateX(-50%) translateY(-20px);
-  z-index: 2147483647;
-  background: rgba(26, 26, 46, 0.95);
-  backdrop-filter: blur(10px);
-  color: #ffffff;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-  padding: 16px 24px;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  pointer-events: none;
-  opacity: 0;
-  transition: all 0.3s ease-out;
-  min-width: 300px;
-  max-width: 500px;
-}
-
-.zg-notification-show {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
-
-.zg-notification-title {
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.zg-notification-message {
-  font-size: 14px;
-  color: #9ca3af;
-  line-height: 1.4;
-}
-
-
-/* ========== ENHANCED GUIDANCE SYSTEM (Spotlight + Arrow) ========== */
-
-/* Dim overlay - covers entire page */
-.zg-guidance-dim {
+.zg-flying-arrow {
   position: fixed;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 2147483640;
-  background: rgba(0, 0, 0, 0.6);
+  z-index: 2147483647;
+  width: 40px;
+  height: 40px;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.3s ease-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 0 8px rgba(255, 107, 53, 0.6));
+  animation: zg-arrow-fly 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-.zg-guidance-dim.zg-guidance-active {
-  opacity: 1;
-}
-
-/* Spotlight - highlights target element */
-.zg-guidance-spotlight {
-  position: fixed;
-  z-index: 2147483645;
-  pointer-events: none;
-  border-radius: 8px;
-  box-shadow:
-    0 0 0 4px rgba(255, 107, 53, 0.8),
-    0 0 0 8px rgba(255, 107, 53, 0.4),
-    0 0 40px 20px rgba(255, 107, 53, 0.6);
-  opacity: 0;
-  transform: scale(0.95);
-  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-  animation: zg-spotlight-pulse 2s ease-in-out infinite;
-}
-
-.zg-guidance-spotlight.zg-guidance-active {
-  opacity: 1;
-  transform: scale(1);
-}
-
-@keyframes zg-spotlight-pulse {
-  0%, 100% {
-    box-shadow:
-      0 0 0 4px rgba(255, 107, 53, 0.8),
-      0 0 0 8px rgba(255, 107, 53, 0.4),
-      0 0 40px 20px rgba(255, 107, 53, 0.6);
-  }
-  50% {
-    box-shadow:
-      0 0 0 6px rgba(255, 107, 53, 1),
-      0 0 0 12px rgba(255, 107, 53, 0.6),
-      0 0 60px 30px rgba(255, 107, 53, 0.8);
-  }
-}
-
-/* Bouncing arrow pointing to element */
-.zg-guidance-arrow {
-  position: fixed;
-  z-index: 2147483646;
-  width: 60px;
-  height: 60px;
-  pointer-events: none;
-  color: #ff6b35;
-  filter: drop-shadow(0 4px 12px rgba(255, 107, 53, 0.6));
-  opacity: 0;
-  transition: opacity 0.3s ease-out;
-  animation: zg-arrow-bounce 1.5s ease-in-out infinite;
-}
-
-.zg-guidance-arrow.zg-guidance-active {
-  opacity: 1;
-}
-
-@keyframes zg-arrow-bounce {
-  0%, 100% {
-    transform: translateY(0) rotate(var(--arrow-rotation, 0deg));
-  }
-  50% {
-    transform: translateY(-15px) rotate(var(--arrow-rotation, 0deg));
-  }
-}
-
-.zg-arrow-svg {
+.zg-flying-arrow-icon {
   width: 100%;
   height: 100%;
+  color: #ff6b35;
 }
 
-/* Floating instruction tooltip */
-.zg-guidance-tooltip {
-  position: fixed;
-  z-index: 2147483646;
-  background: linear-gradient(135deg, #ff6b35 0%, #ff8555 100%);
-  color: #ffffff;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 16px;
-  font-weight: 600;
-  padding: 16px 24px;
-  border-radius: 12px;
-  box-shadow:
-    0 8px 32px rgba(255, 107, 53, 0.4),
-    0 0 0 2px rgba(255, 255, 255, 0.3) inset;
-  pointer-events: none;
-  max-width: 320px;
-  text-align: center;
-  opacity: 0;
-  transform: scale(0.9);
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+@keyframes zg-arrow-fly {
+  0% {
+    opacity: 0;
+    transform: translate(var(--start-x), var(--start-y)) scale(0.5) rotate(var(--angle));
+  }
+
+  20% {
+    opacity: 1;
+    transform: translate(var(--start-x), var(--start-y)) scale(1.2) rotate(var(--angle));
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(var(--end-x), var(--end-y)) scale(0.8) rotate(var(--angle));
+  }
 }
 
-.zg-guidance-tooltip.zg-guidance-active {
-  opacity: 1;
-  transform: scale(1);
-}
+@keyframes zg-tooltip-in {
+  from {
+    transform: translateY(-90%) scale(0.95);
+    opacity: 0;
+  }
 
-/* Tooltip arrow pointer */
-.zg-guidance-tooltip::before {
-  content: '';
-  position: absolute;
-  width: 0;
-  height: 0;
-  border: 10px solid transparent;
-}
-
-/* Arrow pointing down (tooltip above element) */
-.zg-guidance-tooltip[data-position="top"]::before {
-  bottom: -20px;
-  left: 50%;
-  transform: translateX(-50%);
-  border-top-color: #ff8555;
-}
-
-/* Arrow pointing up (tooltip below element) */
-.zg-guidance-tooltip[data-position="bottom"]::before {
-  top: -20px;
-  left: 50%;
-  transform: translateX(-50%);
-  border-bottom-color: #ff6b35;
-}
-
-/* Arrow pointing right (tooltip on left) */
-.zg-guidance-tooltip[data-position="left"]::before {
-  right: -20px;
-  top: 50%;
-  transform: translateY(-50%);
-  border-left-color: #ff8555;
-}
-
-/* Arrow pointing left (tooltip on right) */
-.zg-guidance-tooltip[data-position="right"]::before {
-  left: -20px;
-  top: 50%;
-  transform: translateY(-50%);
-  border-right-color: #ff6b35;
+  to {
+    transform: translateY(-100%) scale(1);
+    opacity: 1;
+  }
 }

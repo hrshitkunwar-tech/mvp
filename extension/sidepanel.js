@@ -9,14 +9,15 @@ var contextBadge = document.getElementById('context-indicator');
 var debugBtn = document.getElementById('btn-debug');
 var debugPanel = document.getElementById('debug-panel');
 var forceScanBtn = document.getElementById('btn-force-scan');
-var toggleOverlays = document.getElementById('toggle-overlays');
-var settingsBtn = document.getElementById('btn-settings');
-var settingsPanel = document.getElementById('settings-panel');
 
 var port = null;
 var currentTabId = null;
 var currentAiMessageDiv = null;
 var overlaysEnabled = true;
+var lastActions = []; // Store actions from the current response
+var isRecording = false;
+var currentProcedure = null;
+var currentStepIndex = 0;
 
 function updateContextIndicator(tab) {
     if (!tab || !contextBadge) return;
@@ -56,10 +57,23 @@ function init() {
             requestImmediateScan();
 
             // Update indicator when tab changes
-            chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
-                if (tabId === currentTabId && changeInfo.title) {
+            chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
+                if (tabId === currentTabId && (changeInfo.title || changeInfo.status === 'complete')) {
                     updateContextIndicator(tab);
+                    requestImmediateScan();
                 }
+            });
+
+            chrome.tabs.onActivated.addListener(function (activeInfo) {
+                chrome.tabs.get(activeInfo.tabId, function (tab) {
+                    if (chrome.runtime.lastError || !tab) return;
+                    currentTabId = tab.id;
+                    updateContextIndicator(tab);
+                    requestImmediateScan();
+
+                    var dbgTab = document.getElementById('dbg-tab');
+                    if (dbgTab) dbgTab.textContent = currentTabId;
+                });
             });
         }
     });
@@ -104,31 +118,72 @@ function init() {
         });
     }
 
-    // Settings panel toggle
-    if (settingsBtn) {
-        settingsBtn.addEventListener('click', function () {
-            settingsPanel.classList.toggle('hidden');
-        });
-    }
-
-    // Overlay toggle
+    // Toggle Overlays
+    var toggleOverlays = document.getElementById('toggle-overlays');
     if (toggleOverlays) {
-        // Load saved preference
-        chrome.storage.local.get(['overlaysEnabled'], function(result) {
-            overlaysEnabled = result.overlaysEnabled !== false; // Default to true
-            if (!overlaysEnabled) {
-                toggleOverlays.classList.remove('active');
-            }
+        chrome.storage.local.get(['overlaysEnabled'], function (result) {
+            overlaysEnabled = result.overlaysEnabled !== false;
+            toggleOverlays.checked = overlaysEnabled;
         });
 
-        toggleOverlays.addEventListener('click', function () {
-            overlaysEnabled = !overlaysEnabled;
-            toggleOverlays.classList.toggle('active');
-
-            // Save preference
+        toggleOverlays.addEventListener('change', function () {
+            overlaysEnabled = this.checked;
             chrome.storage.local.set({ overlaysEnabled: overlaysEnabled });
         });
     }
+
+    // Navigation Prompt Actions
+    var btnNavYes = document.getElementById('btn-nav-yes');
+    var btnNavNo = document.getElementById('btn-nav-no');
+    var navPrompt = document.getElementById('navigation-prompt');
+
+    if (btnNavYes && btnNavNo && navPrompt) {
+        btnNavYes.addEventListener('click', function () {
+            navPrompt.classList.add('hidden');
+            // Execute all stored actions
+            lastActions.forEach(function (action) {
+                chrome.runtime.sendMessage({ action: 'EXECUTE_ACTION', actionData: action, tabId: currentTabId });
+            });
+            lastActions = [];
+        });
+
+        btnNavNo.addEventListener('click', function () {
+            navPrompt.classList.add('hidden');
+            lastActions = [];
+        });
+    }
+
+    var recordBtn = document.getElementById('btn-record');
+    var recordingBadge = document.getElementById('recording-badge');
+    if (recordBtn) {
+        recordBtn.addEventListener('click', function () {
+            isRecording = !isRecording;
+            if (isRecording) {
+                recordBtn.classList.replace('record-off', 'record-on');
+                recordingBadge.classList.remove('hidden');
+                chrome.runtime.sendMessage({ action: 'START_RECORDING', tabId: currentTabId });
+                addMessage("Recording started. Perform your actions on the page.", "ai");
+            } else {
+                recordBtn.classList.replace('record-on', 'record-off');
+                recordingBadge.classList.add('hidden');
+                chrome.runtime.sendMessage({ action: 'STOP_RECORDING', tabId: currentTabId }, function (response) {
+                    if (response && response.success) {
+                        addMessage("Recording saved! ID: " + response.id, "ai");
+                    } else {
+                        var error = (response && response.error) ? response.error : "Unknown error";
+                        addMessage("Recording failed: " + error, "ai");
+                    }
+                });
+            }
+        });
+    }
+    var stopPlaybackBtn = document.getElementById('btn-stop-playback');
+    var nextStepBtn = document.getElementById('btn-next-step');
+    var prevStepBtn = document.getElementById('btn-prev-step');
+
+    if (stopPlaybackBtn) stopPlaybackBtn.addEventListener('click', stopPlayback);
+    if (nextStepBtn) nextStepBtn.addEventListener('click', nextStep);
+    if (prevStepBtn) prevStepBtn.addEventListener('click', prevStep);
 }
 
 function requestImmediateScan() {
@@ -147,9 +202,25 @@ function connect() {
         port = chrome.runtime.connect({ name: 'sidepanel-connection' });
 
         port.onMessage.addListener(function (msg) {
-            if (msg.type === 'token') appendToken(msg.text);
-            else if (msg.type === 'done') finishStream();
-            else if (msg.type === 'error') appendError(msg.text);
+            if (msg.type === 'token') {
+                appendToken(msg.text);
+            } else if (msg.type === 'action') {
+                console.log("[Sidepanel] Received action:", msg.data);
+                lastActions.push(msg.data);
+
+                // execute immediately if possible to show visual guidance while streaming
+                chrome.runtime.sendMessage({
+                    action: 'EXECUTE_ACTION',
+                    actionData: msg.data,
+                    tabId: currentTabId
+                });
+            } else if (msg.type === 'start_workflow') {
+                startPlayback(msg.procedureId);
+            } else if (msg.type === 'done') {
+                finishStream();
+            } else if (msg.type === 'error') {
+                appendError(msg.text);
+            }
         });
 
         port.onDisconnect.addListener(function () {
@@ -162,11 +233,11 @@ function connect() {
                 contextBadge.classList.remove('active');
             }
 
-            setTimeout(function() {
+            setTimeout(function () {
                 connect();
                 // Restore context badge after reconnection
                 if (currentTabId) {
-                    chrome.tabs.get(currentTabId, function(tab) {
+                    chrome.tabs.get(currentTabId, function (tab) {
                         if (tab && contextBadge) {
                             updateContextIndicator(tab);
                         }
@@ -199,6 +270,11 @@ function sendMessage() {
     inputField.value = '';
     inputField.style.height = 'auto';
 
+    // Hide prompt if visible
+    var navPrompt = document.getElementById('navigation-prompt');
+    if (navPrompt) navPrompt.classList.add('hidden');
+    lastActions = [];
+
     currentAiMessageDiv = addMessage('', 'ai');
     currentAiMessageDiv.classList.add('streaming');
     currentAiMessageDiv.rawText = "";
@@ -216,18 +292,29 @@ function sendMessage() {
 function appendToken(text) {
     if (currentAiMessageDiv) {
         currentAiMessageDiv.rawText += text;
-        // Basic Markdown Support
-        var html = currentAiMessageDiv.rawText
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/`(.*?)`/g, '<code>$1</code>')
-            .replace(/^# (.*)/gm, '<h3>$1</h3>')
-            .replace(/\n\n/g, '<br><br>')
-            .replace(/\n/g, '<br>');
 
-        currentAiMessageDiv.innerHTML = html;
+        // Clean text: strip technical directives from display
+        var displayLines = currentAiMessageDiv.rawText.split('\n').filter(function (line) {
+            var l = line.trim();
+            if (l.startsWith('ACTION:') || l.startsWith('<thought>') || l.startsWith('</thought>')) return false;
+            if (l.startsWith('[DEBUG]') || (l.startsWith('.') && l.length > 3) || (l.startsWith('#') && l.length > 3)) return false;
+            return true;
+        });
+
+        // Convert to premium steps if formatted as "1. text"
+        var html = "";
+        displayLines.forEach(function (line) {
+            var stepMatch = line.match(/^(\d+)\.\s*(.*)/);
+            if (stepMatch) {
+                html += '<div class="step-item"><div class="step-num">' + stepMatch[1] + '</div><div class="step-content">' + stepMatch[2] + '</div></div>';
+            } else if (line.trim().length > 0) {
+                // Regular prose
+                var inner = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                html += '<div style="margin-bottom:8px;">' + inner + '</div>';
+            }
+        });
+
+        currentAiMessageDiv.innerHTML = html || "...";
         chatContainer.scrollTop = chatContainer.scrollHeight;
     }
 }
@@ -236,90 +323,33 @@ function finishStream() {
     if (currentAiMessageDiv) {
         currentAiMessageDiv.classList.remove('streaming');
 
-        // Detect step-by-step instructions
-        var text = currentAiMessageDiv.rawText || currentAiMessageDiv.textContent;
-        console.log('[Navigator] Checking for steps in response:', text.substring(0, 200));
+        // Check if there are any ACTION: lines that we should show a prompt for
+        var lines = currentAiMessageDiv.rawText.split('\n');
+        var hasActions = false;
+        lines.forEach(function (line) {
+            if (line.trim().startsWith('ACTION:')) {
+                hasActions = true;
+                // Parse the action if it's in string format
+                // ACTION:type:zone:selector:duration
+                var parts = line.trim().split(':');
+                if (parts.length >= 3) {
+                    lastActions.push({
+                        type: parts[1],
+                        zone: parts[2],
+                        selector: parts[3] || null,
+                        duration: parseInt(parts[4]) || 3000
+                    });
+                }
+            }
+        });
 
-        var hasSteps = detectStepByStepInstructions(text);
-        console.log('[Navigator] Step detection result:', hasSteps);
-
-        if (hasSteps) {
-            console.log('[Navigator] Adding navigation prompt');
-            // Add navigation prompt
-            var promptDiv = document.createElement('div');
-            promptDiv.className = 'navigation-prompt';
-            promptDiv.innerHTML = `
-                <div class="navigation-prompt-text">Should I navigate you on the screen?</div>
-                <div class="navigation-prompt-buttons">
-                    <button class="nav-btn nav-btn-yes">Yes, guide me</button>
-                    <button class="nav-btn nav-btn-no">No, thanks</button>
-                </div>
-            `;
-
-            currentAiMessageDiv.appendChild(promptDiv);
-
-            // Add event listeners
-            var yesBtn = promptDiv.querySelector('.nav-btn-yes');
-            var noBtn = promptDiv.querySelector('.nav-btn-no');
-
-            yesBtn.addEventListener('click', function() {
-                console.log('[Navigator] User clicked "Yes, guide me"');
-                startNavigationGuidance(text);
-                promptDiv.remove();
-            });
-
-            noBtn.addEventListener('click', function() {
-                console.log('[Navigator] User clicked "No, thanks"');
-                promptDiv.remove();
-            });
+        if (hasActions && overlaysEnabled) {
+            var navPrompt = document.getElementById('navigation-prompt');
+            if (navPrompt) navPrompt.classList.remove('hidden');
         }
 
         currentAiMessageDiv = null;
     }
-}
-
-/**
- * Detect if the text contains step-by-step instructions
- */
-function detectStepByStepInstructions(text) {
-    if (!text) return false;
-
-    var lowerText = text.toLowerCase();
-
-    // Pattern 1: Numbered lists (1. 2. 3. or Step 1: Step 2:)
-    var hasNumberedList = /(?:\n|^)\s*(?:\d+\.|step \d+:)/i.test(text);
-
-    // Pattern 2: Multiple numbered items (at least 2)
-    var numberedItems = text.match(/(?:\n|^)\s*\d+\./g);
-    var hasMultipleNumbers = numberedItems && numberedItems.length >= 2;
-
-    // Pattern 3: Sequential action words
-    var actionWords = ['first', 'then', 'next', 'after that', 'finally', 'lastly', 'second', 'third'];
-    var hasMultipleActions = 0;
-    for (var i = 0; i < actionWords.length; i++) {
-        if (lowerText.indexOf(actionWords[i]) > -1) {
-            hasMultipleActions++;
-        }
-    }
-
-    // Pattern 4: Click/navigate instructions
-    var hasClickInstructions = /click|navigate|go to|select|choose|open|tap|press/i.test(text);
-
-    // Pattern 5: "How to" or instructional language
-    var hasInstructionalLanguage = /how to|here's how|follow these|here are the steps/i.test(text);
-
-    console.log('[Navigator] Detection patterns:', {
-        hasNumberedList: hasNumberedList,
-        hasMultipleNumbers: hasMultipleNumbers,
-        actionWordsCount: hasMultipleActions,
-        hasClickInstructions: hasClickInstructions,
-        hasInstructionalLanguage: hasInstructionalLanguage
-    });
-
-    // Return true if we detect clear step-by-step patterns
-    return hasNumberedList || hasMultipleNumbers ||
-           (hasMultipleActions >= 2 && hasClickInstructions) ||
-           (hasInstructionalLanguage && hasClickInstructions);
 }
 
 function appendError(text) {
@@ -364,169 +394,76 @@ function refreshDebug() {
     });
 }
 
-/**
- * Start interactive navigation guidance
- * Parse steps and show zone highlights/arrows for each step
- */
-function startNavigationGuidance(text) {
-    if (!overlaysEnabled) {
-        addMessage('Navigation overlays are disabled. Enable them in settings.', 'error');
-        return;
-    }
-
-    if (!currentTabId) {
-        addMessage('Cannot navigate: no active tab', 'error');
-        return;
-    }
-
-    // Parse steps from the text
-    var steps = parseSteps(text);
-
-    if (steps.length === 0) {
-        addMessage('Could not parse navigation steps', 'error');
-        return;
-    }
-
-    // Show navigation in progress message
-    var navMsg = addMessage('🧭 Starting navigation guidance... (Step 1 of ' + steps.length + ')', 'ai');
-
-    // Navigate through steps
-    navigateSteps(steps, 0, navMsg);
-}
-
-/**
- * Parse steps from instructional text
- */
-function parseSteps(text) {
-    var steps = [];
-
-    // Split by numbered lines (1. 2. 3. or Step 1: Step 2:)
-    var lines = text.split('\n');
-    var currentStep = '';
-
-    for (var i = 0; i < lines.length; i++) {
-        var line = lines[i].trim();
-
-        // Check if line starts with a number or "Step"
-        var stepMatch = line.match(/^(\d+\.|Step \d+:)\s*(.+)/i);
-
-        if (stepMatch) {
-            // Save previous step
-            if (currentStep) {
-                steps.push(parseStepAction(currentStep));
-            }
-            // Start new step
-            currentStep = stepMatch[2];
-        } else if (currentStep) {
-            // Continue current step
-            currentStep += ' ' + line;
-        }
-    }
-
-    // Save last step
-    if (currentStep) {
-        steps.push(parseStepAction(currentStep));
-    }
-
-    return steps.filter(function(s) { return s !== null; });
-}
-
-/**
- * Parse a single step to extract action and target element
- */
-function parseStepAction(stepText) {
-    // Extract action words and targets
-    var clickMatch = stepText.match(/click\s+(?:on\s+)?(?:the\s+)?["']?([^"'.,]+)["']?/i);
-    var navigateMatch = stepText.match(/(?:go to|navigate to|open)\s+(?:the\s+)?["']?([^"'.,]+)["']?/i);
-    var selectMatch = stepText.match(/select\s+(?:the\s+)?["']?([^"'.,]+)["']?/i);
-
-    var target = null;
-    var action = 'click';
-
-    if (clickMatch) {
-        target = clickMatch[1].trim();
-    } else if (navigateMatch) {
-        target = navigateMatch[1].trim();
-        action = 'navigate';
-    } else if (selectMatch) {
-        target = selectMatch[1].trim();
-    }
-
-    if (!target) {
-        // Generic step without specific element
-        return {
-            text: stepText,
-            target: null,
-            action: 'show',
-            zone: 'center'
-        };
-    }
-
-    return {
-        text: stepText,
-        target: target,
-        action: action,
-        zone: 'center' // Default to center, could be refined with AI
-    };
-}
-
-/**
- * Navigate through steps with visual guidance
- */
-function navigateSteps(steps, currentIndex, messageDiv) {
-    if (currentIndex >= steps.length) {
-        messageDiv.textContent = '✅ Navigation complete!';
-        return;
-    }
-
-    var step = steps[currentIndex];
-
-    // Update message
-    messageDiv.textContent = '🧭 Step ' + (currentIndex + 1) + ' of ' + steps.length + ': ' + step.text;
-
-    // Show zone highlight
-    if (overlaysEnabled) {
-        chrome.tabs.sendMessage(currentTabId, {
-            type: 'ZONEGUIDE_SHOW_ZONE',
-            payload: {
-                zone: step.zone,
-                duration: 3000,
-                selector: step.target ? findElementSelector(step.target) : null
-            }
-        }, function(response) {
-            if (chrome.runtime.lastError) {
-                console.warn('Failed to show zone:', chrome.runtime.lastError.message);
-            }
-        });
-    }
-
-    // Auto-advance to next step after 3.5 seconds
-    setTimeout(function() {
-        navigateSteps(steps, currentIndex + 1, messageDiv);
-    }, 3500);
-}
-
-/**
- * Try to find a CSS selector for a target element description
- * This is a simple heuristic - could be enhanced with AI/ML
- */
-function findElementSelector(targetDescription) {
-    // Common patterns
-    var lowerTarget = targetDescription.toLowerCase();
-
-    // Try to match common UI elements
-    if (lowerTarget.includes('button')) {
-        return 'button';
-    } else if (lowerTarget.includes('link')) {
-        return 'a';
-    } else if (lowerTarget.includes('menu')) {
-        return '[role="menu"], nav';
-    } else if (lowerTarget.includes('search')) {
-        return 'input[type="search"], [role="search"]';
-    }
-
-    // Try to find by text content (approximate)
-    return null; // Let ZoneGuide show zone only
-}
-
 init();
+
+function startPlayback(procedureId) {
+    chrome.runtime.sendMessage({ action: 'GET_PROCEDURE', id: procedureId }, function (response) {
+        if (response && response.procedure) {
+            currentProcedure = response.procedure;
+            currentStepIndex = 0;
+
+            document.getElementById('playback-panel').classList.remove('hidden');
+            document.getElementById('playback-title').textContent = currentProcedure.name;
+            showStep(0);
+
+            // Hide input area during playback to focus on guidance
+            document.getElementById('input-area').classList.add('hidden');
+        } else {
+            appendError("Failed to load workflow.");
+        }
+    });
+}
+
+function showStep(index) {
+    if (!currentProcedure || !currentProcedure.steps[index]) return;
+
+    currentStepIndex = index;
+    var step = currentProcedure.steps[index];
+    var total = currentProcedure.steps.length;
+
+    // Update UI
+    document.getElementById('step-instruction').textContent = step.description;
+    document.getElementById('step-count').textContent = (index + 1) + " / " + total;
+    document.getElementById('progress-bar').style.width = ((index + 1) / total * 100) + "%";
+
+    // Controls
+    document.getElementById('btn-prev-step').disabled = (index === 0);
+    document.getElementById('btn-next-step').textContent = (index === total - 1) ? "Finish" : "Next";
+
+    // Execute visual guidance
+    chrome.runtime.sendMessage({
+        action: 'EXECUTE_ACTION',
+        actionData: {
+            type: step.action || 'highlight_zone',
+            zone: step.zone || 'center',
+            selector: step.selector,
+            instruction: step.description,
+            duration: 0 // Keep highlighted until next step
+        },
+        tabId: currentTabId
+    });
+}
+
+function nextStep() {
+    if (currentStepIndex < currentProcedure.steps.length - 1) {
+        showStep(currentStepIndex + 1);
+    } else {
+        stopPlayback();
+    }
+}
+
+function prevStep() {
+    if (currentStepIndex > 0) {
+        showStep(currentStepIndex - 1);
+    }
+}
+
+function stopPlayback() {
+    currentProcedure = null;
+    currentStepIndex = 0;
+    document.getElementById('playback-panel').classList.add('hidden');
+    document.getElementById('input-area').classList.remove('hidden');
+
+    // Clear highlights
+    chrome.runtime.sendMessage({ action: 'EXECUTE_ACTION', actionData: { type: 'hide_zone' }, tabId: currentTabId });
+}

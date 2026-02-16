@@ -9,6 +9,7 @@
 console.log("Navigator Background 2.0.4: Unified Bridge Online");
 
 var tabContexts = {};
+var recordings = {}; // tabId -> actions[]
 
 // Helper function to safely post messages to port
 function safePostMessage(port, message) {
@@ -30,28 +31,6 @@ chrome.runtime.onInstalled.addListener(function () {
   }
 });
 
-// Handle keyboard commands
-chrome.commands.onCommand.addListener(function(command) {
-  if (command === 'toggle-zoneguide-recording') {
-    console.log('[Navigator] Toggle recording shortcut triggered');
-
-    // Get active tab and send message to toggle recording
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      if (tabs[0]) {
-        chrome.tabs.sendMessage(tabs[0].id, {
-          action: 'toggleRecording'
-        }, function(response) {
-          if (chrome.runtime.lastError) {
-            console.error('[Navigator] Recording toggle failed:', chrome.runtime.lastError.message);
-          } else {
-            console.log('[Navigator] Recording toggled:', response);
-          }
-        });
-      }
-    });
-  }
-});
-
 chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
   if (request.action === 'CONTEXT_UPDATED' && sender.tab) {
     var tid = sender.tab.id;
@@ -60,16 +39,98 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
   } else if (request.action === 'GET_DEBUG_CONTEXT') {
     sendResponse({ context: tabContexts[request.tabId] });
     return true;
-  } else if (request.action === 'recordingStarted') {
-    console.log('[Navigator] Recording started:', request.workflow);
+  } else if (request.action === 'EXECUTE_ACTION') {
+    handleAction(request.actionData, request.tabId);
     sendResponse({ status: 'ok' });
-  } else if (request.action === 'recordingStopped') {
-    console.log('[Navigator] Recording stopped:', request.workflow);
-    // TODO: Sync workflow to Convex backend
+    return true;
+  } else if (request.action === 'START_RECORDING') {
+    recordings[request.tabId] = [];
+    chrome.tabs.sendMessage(request.tabId, { action: 'SET_RECORDING', enabled: true });
     sendResponse({ status: 'ok' });
+  } else if (request.action === 'STOP_RECORDING') {
+    handleStopRecording(request.tabId, sendResponse);
+    return true; // async
+  } else if (request.action === 'RECORD_ACTION' && sender.tab) {
+    if (recordings[sender.tab.id]) {
+      recordings[sender.tab.id].push(request.payload);
+    }
+    sendResponse({ status: 'ok' });
+  } else if (request.action === 'GET_PROCEDURE') {
+    fetch('http://127.0.0.1:8000/get-procedure', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: request.id })
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        sendResponse(data);
+      })
+      .catch(function (err) {
+        sendResponse({ success: false, error: err.message });
+      });
+    return true; // async
   }
   return true;
 });
+
+function handleStopRecording(tabId, sendResponse) {
+  var actions = recordings[tabId] || [];
+  delete recordings[tabId];
+
+  // Stop recording in content script
+  chrome.tabs.sendMessage(tabId, { action: 'SET_RECORDING', enabled: false });
+
+  if (actions.length === 0) {
+    sendResponse({ success: false, error: 'No actions recorded' });
+    return;
+  }
+
+  // Get tab context for metadata
+  var context = tabContexts[tabId];
+  var payload = {
+    name: "Recorded Workflow - " + new Date().toLocaleString(),
+    description: "User recorded workflow on " + (context ? context.meta.title : "unknown page"),
+    product: context ? new URL(context.meta.url).hostname : "General",
+    version: "1.0.0",
+    intent_patterns: [context ? context.meta.title : "recorded workflow"],
+    required_context: [],
+    steps: actions.map(function (a, i) {
+      return {
+        step_id: "step_" + i,
+        description: a.type + " on " + a.element,
+        action: a.type === 'click' ? 'highlight_zone' : 'input',
+        zone: 'center',
+        selector: a.selector,
+        value: a.value
+      };
+    }),
+    author: "User",
+    status: "active"
+  };
+
+  // Save to Convex via bridge
+  fetch('http://127.0.0.1:8000/save-workflow', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+    .then(function (res) { return res.json(); })
+    .then(function (data) {
+      if (data && data.success) {
+        var savedId = data.id || "unknown";
+        console.log("Recording saved successfully. ID:", savedId);
+        sendResponse({ success: true, id: savedId });
+      } else {
+        var error = (data && data.error) ? data.error : "Failed to save workflow (Bridge Error)";
+        console.error("Recording save failed:", error);
+        sendResponse({ success: false, error: error });
+      }
+    })
+    .catch(function (err) {
+      console.error("Failed to save workflow:", err);
+      sendResponse({ success: false, error: err.message });
+    });
+}
 
 function updateMemoryContext(tabId, payload) {
   var existing = tabContexts[tabId] || {
@@ -137,7 +198,7 @@ function handleAskLLM(port, query, tabId) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          query: query,
+          query: "SYSTEM: Act as a concise Navigator AI. Respond ONLY with a clean, numbered step-by-step guide. No preamble. No conversational filler. Use 'ACTION:highlight_zone:zone:selector' for navigation.\n\nUSER QUERY: " + query,
           tool_name: toolName,
           url: context ? context.meta.url : "Browser Tab",
           context_text: context ? context.content.text.substring(0, 15000) : "No text."
@@ -185,9 +246,13 @@ function handleAskLLM(port, query, tabId) {
                 safePostMessage(port, { type: 'token', text: json.message.content });
               }
 
-              // Handle action directives (NEW)
+              // Handle action directives (NOW DEFERRED TO UI PROMPT)
               if (json.action) {
-                handleAction(json.action, tabId);
+                // Modified: Send action to sidepanel immediately for visual execution
+                safePostMessage(port, { type: 'action', data: json.action });
+
+                // Also execute locally (optional, but sidepanel will request it anyway)
+                // handleAction(json.action, tabId);
               }
 
               // Handle completion
@@ -222,11 +287,11 @@ function handleAction(action, tabId) {
 
   if (action.type === 'highlight_zone') {
     // CRITICAL: Verify tabId is valid before sending, fallback to active tab if needed
-    chrome.tabs.get(tabId, function(tab) {
+    chrome.tabs.get(tabId, function (tab) {
       if (chrome.runtime.lastError || !tab) {
         // TabId is invalid (closed/navigated) - fallback to active tab
         console.warn('[Navigator] Invalid tabId, using active tab');
-        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
           if (tabs[0]) {
             sendActionToTab(tabs[0].id, action);
           } else {
@@ -238,6 +303,8 @@ function handleAction(action, tabId) {
         sendActionToTab(tabId, action);
       }
     });
+  } else if (action.type === 'hide_zone') {
+    chrome.tabs.sendMessage(tabId, { type: 'ZONEGUIDE_HIDE_ZONE' });
   }
 }
 
@@ -255,9 +322,10 @@ function sendActionToTab(tabId, action) {
     payload: {
       zone: action.zone,
       duration: action.duration || 2500,
-      selector: action.selector || null
+      selector: action.selector || null,
+      instruction: action.instruction || null
     }
-  }, function(response) {
+  }, function (response) {
     if (chrome.runtime.lastError) {
       console.error('[Navigator] ✗ Action failed:', chrome.runtime.lastError.message);
       console.error('[Navigator] ✗ Possible issue: Content script not loaded on tab', tabId);

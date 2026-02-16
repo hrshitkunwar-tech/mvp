@@ -33,7 +33,7 @@ app.add_middleware(
 
 # Configuration
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
-CONVEX_URL = os.getenv("CONVEX_URL", "https://abundant-porpoise-181.convex.cloud")
+CONVEX_URL = os.getenv("CONVEX_URL", "https://tremendous-canary-552.convex.cloud")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:8b")
 
 # Request models
@@ -108,6 +108,78 @@ async def detect_tool(request: DetectToolRequest):
         "confidence": 0.0,
         "has_knowledge": False
     }
+
+@app.post("/save-workflow")
+async def save_workflow(request: dict):
+    """
+    Saves a recorded workflow to Convex
+    """
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                f"{CONVEX_URL}/api/mutation",
+                json={
+                    "path": "procedures:create",
+                    "args": {
+                        "procedure": request
+                    }
+                }
+            )
+            if response.status_code == 200:
+                data = response.json()
+                print(f"DEBUG: Convex Response: {json.dumps(data)}")
+                if data.get("status") == "error":
+                    error_msg = data.get("errorMessage", "Unknown Convex Error")
+                    print(f"Convex Mutation Error: {error_msg}")
+                    return {"success": False, "error": error_msg}
+                
+                # Extract value
+                value = data.get("value")
+                print(f"DEBUG: Extracted value: {value}")
+                if isinstance(value, dict) and "id" in value:
+                    print(f"DEBUG: Found 'id' in dict: {value['id']}")
+                    return {"success": True, "id": str(value["id"])}
+                elif isinstance(value, str):
+                    print(f"DEBUG: value is string: {value}")
+                    return {"success": True, "id": value}
+                else:
+                    print(f"Warning: Unexpected Convex value structure: {value}")
+                    # Try to see if wait, maybe the ID is in _id?
+                    if isinstance(value, dict) and "_id" in value:
+                         return {"success": True, "id": str(value["_id"])}
+                    return {"success": True, "id": str(value) if value else "unknown"}
+            else:
+                error_text = response.text
+                print(f"Convex HTTP Error {response.status_code}: {error_text}")
+                return {"success": False, "error": f"HTTP {response.status_code}: {error_text}"}
+    except Exception as e:
+        print(f"Error saving workflow to Convex: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/get-procedure")
+async def get_procedure(request: dict):
+    """
+    Fetches a single procedure from Convex
+    """
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                f"{CONVEX_URL}/api/query",
+                json={
+                    "path": "procedures:getById",
+                    "args": {
+                        "id": request.get("id")
+                    }
+                }
+            )
+            if response.status_code == 200:
+                data = response.json()
+                return {"success": True, "procedure": data.get("value")}
+            else:
+                raise HTTPException(status_code=response.status_code, detail=response.text)
+    except Exception as e:
+        print(f"Error fetching procedure from Convex: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 async def classify_query(query: str, tool_name: Optional[str], context_text: str) -> str:
     """

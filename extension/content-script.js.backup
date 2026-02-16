@@ -11,7 +11,6 @@ var CONFIG = {
 
 function ContentAgent() {
     this.contextId = Math.random().toString(36).substring(2, 12);
-    this.recordingEnabled = false;
     this.init();
 }
 
@@ -21,48 +20,26 @@ ContentAgent.prototype.init = function () {
     // NEW: Inject ZoneGuide into page context (not isolated world)
     if (window.top === window && !window.__ZONEGUIDE_INJECTED__) {
         try {
-            // CRITICAL FIX: Inject CSS first (Chrome doesn't auto-inject content_scripts CSS reliably)
-            var link = document.createElement('link');
-            link.rel = 'stylesheet';
-            link.type = 'text/css';
-            link.href = chrome.runtime.getURL('zoneguide/styles.css');
-            link.onload = function () {
-                console.log('[Navigator] styles.css injected');
-            };
-            link.onerror = function (e) {
-                console.error('[Navigator] Failed to load styles.css:', e);
-            };
-            (document.head || document.documentElement).appendChild(link);
-
-            // Inject ZoneGuide scripts in sequence
-            var scripts = [
-                'zoneguide/zones.js',
-                'zoneguide/index.js',
-                'zoneguide/selector.js',
-                'zoneguide/storage.js',
-                'zoneguide/guidance.js',
-                'zoneguide/recorder.js'
-            ];
-
-            function injectNext(index) {
-                if (index >= scripts.length) {
-                    console.log('[Navigator] All ZoneGuide scripts loaded');
-                    return;
-                }
-
-                var script = document.createElement('script');
-                script.src = chrome.runtime.getURL(scripts[index]);
-                script.onload = function() {
-                    console.log('[Navigator] ' + scripts[index] + ' injected');
-                    injectNext(index + 1);
+            // Inject zones.js
+            var script1 = document.createElement('script');
+            script1.src = chrome.runtime.getURL('zoneguide/zones.js');
+            script1.onload = function () {
+                console.log('[Navigator] zones.js injected');
+                // Inject index.js after zones.js loads
+                var script2 = document.createElement('script');
+                script2.src = chrome.runtime.getURL('zoneguide/index.js');
+                script2.onload = function () {
+                    console.log('[Navigator] index.js injected');
                 };
-                script.onerror = function(e) {
-                    console.error('[Navigator] Failed to load ' + scripts[index] + ':', e);
+                script2.onerror = function (e) {
+                    console.error('[Navigator] Failed to load index.js:', e);
                 };
-                (document.head || document.documentElement).appendChild(script);
-            }
-
-            injectNext(0);
+                (document.head || document.documentElement).appendChild(script2);
+            };
+            script1.onerror = function (e) {
+                console.error('[Navigator] Failed to load zones.js:', e);
+            };
+            (document.head || document.documentElement).appendChild(script1);
             window.__ZONEGUIDE_INJECTED__ = true;
         } catch (e) {
             console.error('[Navigator] ZoneGuide injection error:', e);
@@ -138,67 +115,9 @@ ContentAgent.prototype.init = function () {
 
             return true; // Keep channel open for async response
         }
-
-        if (req.action === 'SET_RECORDING') {
-            self.recordingEnabled = req.enabled;
-            if (self.recordingEnabled) {
-                console.log('[Navigator] Action Recording Active');
-            } else {
-                console.log('[Navigator] Action Recording Disabled');
-            }
-            sendResponse({ status: 'ok' });
-        }
     });
 
-    // Capture Clicks
-    document.addEventListener('click', function (e) {
-        if (!self.recordingEnabled) return;
-
-        var el = e.target;
-        var payload = {
-            type: 'click',
-            element: el.tagName,
-            text: (el.innerText || "").substring(0, 30),
-            selector: self.getOptimizedSelector(el),
-            timestamp: Date.now()
-        };
-
-        chrome.runtime.sendMessage({ action: 'RECORD_ACTION', payload: payload });
-    }, true);
-
-    // Capture Inputs
-    document.addEventListener('change', function (e) {
-        if (!self.recordingEnabled) return;
-
-        var el = e.target;
-        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
-            var payload = {
-                type: 'input',
-                element: el.tagName,
-                value: el.value,
-                selector: self.getOptimizedSelector(el),
-                timestamp: Date.now()
-            };
-            chrome.runtime.sendMessage({ action: 'RECORD_ACTION', payload: payload });
-        }
-    }, true);
-
     console.log('[Navigator] Quantum Sensor Online (' + (window.top === window ? 'Top' : 'Frame') + '). ID:', this.contextId);
-};
-
-ContentAgent.prototype.getOptimizedSelector = function (el) {
-    if (el.id) return '#' + el.id;
-    if (el.getAttribute('data-testid')) return '[data-testid="' + el.getAttribute('data-testid') + '"]';
-    if (el.getAttribute('aria-label')) return '[aria-label="' + el.getAttribute('aria-label') + '"]';
-
-    var selector = el.tagName.toLowerCase();
-    if (el.className && typeof el.className === 'string') {
-        var classes = el.className.trim().split(/\s+/);
-        if (classes.length > 0 && classes[0] !== '') {
-            selector += '.' + classes[0];
-        }
-    }
-    return selector;
 };
 
 ContentAgent.prototype.scanAndSend = function (reason) {
