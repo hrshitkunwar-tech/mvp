@@ -36,8 +36,22 @@
     // Listen for recording toggle command
     document.addEventListener('keydown', handleKeyboardShortcut);
 
-    // Listen for messages from background script
-    chrome.runtime.onMessage.addListener(handleMessage);
+    // Listen for messages from content script (via window.postMessage)
+    window.addEventListener('message', function(event) {
+      if (event.source !== window) return;
+      if (event.data && event.data.type === 'ZONEGUIDE_TOGGLE_RECORDING') {
+        toggleRecording();
+        window.postMessage({
+          type: 'ZONEGUIDE_RESPONSE',
+          payload: { success: true, isRecording }
+        }, '*');
+      } else if (event.data && event.data.type === 'ZONEGUIDE_GET_STATE') {
+        window.postMessage({
+          type: 'ZONEGUIDE_RESPONSE',
+          payload: { isRecording, stepCount: stepCounter }
+        }, '*');
+      }
+    });
 
     console.log('[ZoneGuide Recorder] Ready');
   }
