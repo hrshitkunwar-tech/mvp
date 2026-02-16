@@ -56,16 +56,21 @@
     }
 
     const currentUrl = window.location.href;
+    const hostname = window.location.hostname;
+    const pathname = window.location.pathname;
 
     for (const contextPattern of pattern.context) {
       // Convert glob pattern to regex
       const regex = new RegExp(
-        '^' + contextPattern
+        contextPattern
           .replace(/\*/g, '.*')
-          .replace(/\?/g, '.') + '$'
+          .replace(/\?/g, '.')
       );
 
-      if (regex.test(currentUrl)) {
+      // Try matching against full URL, hostname+pathname, or just hostname
+      if (regex.test(currentUrl) ||
+          regex.test(hostname + pathname) ||
+          regex.test(hostname)) {
         return true;
       }
     }
