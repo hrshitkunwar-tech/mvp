@@ -28,6 +28,7 @@
    * Initialize guidance system
    */
   function init() {
+    injectKeyframeAnimations();
     createUIElements();
 
     // Load user preferences
@@ -41,24 +42,88 @@
   }
 
   /**
+   * Inject keyframe animations into page
+   */
+  function injectKeyframeAnimations() {
+    if (document.getElementById('zg-guidance-keyframes')) return;
+
+    const style = document.createElement('style');
+    style.id = 'zg-guidance-keyframes';
+    style.textContent = `
+      @keyframes zg-spotlight-pulse {
+        0%, 100% {
+          box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.8), 0 0 0 8px rgba(255, 107, 53, 0.4), 0 0 20px 12px rgba(255, 107, 53, 0.6), 0 0 40px 20px rgba(255, 255, 255, 0.3);
+        }
+        50% {
+          box-shadow: 0 0 0 6px rgba(255, 107, 53, 0.9), 0 0 0 12px rgba(255, 107, 53, 0.5), 0 0 30px 16px rgba(255, 107, 53, 0.7), 0 0 50px 25px rgba(255, 255, 255, 0.4);
+        }
+      }
+
+      @keyframes zg-arrow-bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(8px); }
+      }
+
+      @keyframes zg-arrow-bounce-up {
+        0%, 100% { transform: translateY(0) rotate(180deg); }
+        50% { transform: translateY(-8px) rotate(180deg); }
+      }
+
+      @keyframes zg-arrow-bounce-left {
+        0%, 100% { transform: translateX(0) rotate(90deg); }
+        50% { transform: translateX(-8px) rotate(90deg); }
+      }
+
+      @keyframes zg-arrow-bounce-right {
+        0%, 100% { transform: translateX(0) rotate(-90deg); }
+        50% { transform: translateX(8px) rotate(-90deg); }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  /**
    * Create UI elements
    */
   function createUIElements() {
     // Dim overlay
     dimOverlay = document.createElement('div');
     dimOverlay.className = 'zg-guidance-dim';
-    dimOverlay.style.display = 'none';
+    Object.assign(dimOverlay.style, {
+      display: 'none',
+      position: 'fixed',
+      top: '0',
+      left: '0',
+      width: '100vw',
+      height: '100vh',
+      background: 'rgba(0, 0, 0, 0.6)',
+      zIndex: '2147483645',
+      pointerEvents: 'none',
+      opacity: '0',
+      transition: 'opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
+    });
 
     // Spotlight (reverse mask - shows element)
     spotlight = document.createElement('div');
     spotlight.className = 'zg-guidance-spotlight';
-    spotlight.style.display = 'none';
+    Object.assign(spotlight.style, {
+      display: 'none',
+      position: 'fixed',
+      zIndex: '2147483646',
+      pointerEvents: 'none',
+      borderRadius: '8px',
+      boxShadow: '0 0 0 4px rgba(255, 107, 53, 0.8), 0 0 0 8px rgba(255, 107, 53, 0.4), 0 0 20px 12px rgba(255, 107, 53, 0.6), 0 0 40px 20px rgba(255, 255, 255, 0.3)',
+      opacity: '0',
+      transform: 'scale(0.95)',
+      transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+      animation: 'zg-spotlight-pulse 2s ease-in-out infinite'
+    });
 
     // Bouncing arrow
     arrow = document.createElement('div');
     arrow.className = 'zg-guidance-arrow';
     arrow.innerHTML = `
-      <svg width="60" height="60" viewBox="0 0 60 60" class="zg-arrow-svg">
+      <svg width="60" height="60" viewBox="0 0 60 60" class="zg-arrow-svg" style="display: block;">
         <path d="M30 10 L30 40 M30 40 L20 30 M30 40 L40 30"
               stroke="currentColor"
               stroke-width="4"
@@ -68,12 +133,40 @@
         <circle cx="30" cy="45" r="3" fill="currentColor"/>
       </svg>
     `;
-    arrow.style.display = 'none';
+    Object.assign(arrow.style, {
+      display: 'none',
+      position: 'fixed',
+      zIndex: '2147483647',
+      pointerEvents: 'none',
+      color: '#ff6b35',
+      filter: 'drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3))',
+      opacity: '0',
+      transition: 'opacity 0.4s ease, transform 0.4s ease',
+      animation: 'zg-arrow-bounce 1.5s ease-in-out infinite'
+    });
 
     // Floating tooltip
     tooltip = document.createElement('div');
     tooltip.className = 'zg-guidance-tooltip';
-    tooltip.style.display = 'none';
+    Object.assign(tooltip.style, {
+      display: 'none',
+      position: 'fixed',
+      zIndex: '2147483647',
+      pointerEvents: 'none',
+      maxWidth: '280px',
+      padding: '12px 16px',
+      background: 'linear-gradient(135deg, #ff6b35 0%, #f7931e 100%)',
+      color: 'white',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      fontSize: '14px',
+      fontWeight: '500',
+      lineHeight: '1.4',
+      borderRadius: '8px',
+      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.1) inset',
+      opacity: '0',
+      transform: 'translateY(-10px) scale(0.95)',
+      transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
+    });
 
     // Append to body
     document.body.appendChild(dimOverlay);
