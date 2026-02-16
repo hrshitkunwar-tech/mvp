@@ -187,6 +187,26 @@ ContentAgent.prototype.init = function () {
         }
     }, true);
 
+    // CONVEX PROXY: Listen for Convex queries from page context (knowledge-connector.js)
+    // This bypasses CSP by routing through background script
+    window.addEventListener('message', function (event) {
+        if (event.source !== window) return;
+        if (event.data.type === 'CONVEX_QUERY_REQUEST') {
+            console.log('[Navigator] Proxying Convex query to background');
+            chrome.runtime.sendMessage({
+                action: 'CONVEX_QUERY',
+                url: event.data.url,
+                payload: event.data.payload
+            }, function (response) {
+                window.postMessage({
+                    type: 'CONVEX_QUERY_RESPONSE',
+                    requestId: event.data.requestId,
+                    response: response
+                }, '*');
+            });
+        }
+    });
+
     console.log('[Navigator] Quantum Sensor Online (' + (window.top === window ? 'Top' : 'Frame') + '). ID:', this.contextId);
 };
 

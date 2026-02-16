@@ -69,6 +69,26 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
         sendResponse({ success: false, error: err.message });
       });
     return true; // async
+  } else if (request.action === 'CONVEX_QUERY') {
+    // Proxy for Convex queries (bypasses CSP in content scripts)
+    fetch(request.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request.payload)
+    })
+      .then(function (res) {
+        if (!res.ok) {
+          throw new Error('Convex query failed: ' + res.status);
+        }
+        return res.json();
+      })
+      .then(function (data) {
+        sendResponse({ success: true, data: data });
+      })
+      .catch(function (err) {
+        sendResponse({ success: false, error: err.message });
+      });
+    return true; // async
   }
   return true;
 });

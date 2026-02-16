@@ -24,6 +24,40 @@
   let currentTool = null;
 
   /**
+   * Helper: Proxy Convex query through background script (bypasses CSP)
+   */
+  function convexQuery(path, args) {
+    return new Promise((resolve, reject) => {
+      const requestId = Math.random().toString(36).substring(2);
+      const timeout = setTimeout(() => reject(new Error('Convex query timeout')), 10000);
+
+      // Listen for response
+      const listener = (event) => {
+        if (event.data.type === 'CONVEX_QUERY_RESPONSE' && event.data.requestId === requestId) {
+          clearTimeout(timeout);
+          window.removeEventListener('message', listener);
+
+          if (event.data.response.success) {
+            resolve(event.data.response.data);
+          } else {
+            reject(new Error(event.data.response.error));
+          }
+        }
+      };
+
+      window.addEventListener('message', listener);
+
+      // Send request to content script (which proxies to background)
+      window.postMessage({
+        type: 'CONVEX_QUERY_REQUEST',
+        requestId: requestId,
+        url: `${CONVEX_URL}/api/query`,
+        payload: { path, args }
+      }, '*');
+    });
+  }
+
+  /**
    * Detect current tool from URL
    */
   function detectTool() {
@@ -84,23 +118,11 @@
     console.log('[KG Connector] Fetching knowledge from Convex for:', toolName);
 
     try {
-      // Fetch from Convex
-      const response = await fetch(`${CONVEX_URL}/api/query`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          path: 'knowledge:getKnowledgeByTool',
-          args: { tool_name: toolName, limit: 100 }
-        })
+      // Query via background proxy (bypasses CSP)
+      const knowledge = await convexQuery('knowledge:getKnowledgeByTool', {
+        tool_name: toolName,
+        limit: 100
       });
-
-      if (!response.ok) {
-        // Silent failure - just log at debug level
-        console.log('[KG Connector] Convex not available (status:', response.status, '), continuing with static patterns');
-        return [];
-      }
-
-      const knowledge = await response.json();
 
       // Cache it
       knowledgeCache.set(toolName, {
@@ -263,21 +285,13 @@
     console.log('[KG Connector] Searching knowledge:', query, 'for tool:', tool);
 
     try {
-      const response = await fetch(`${CONVEX_URL}/api/query`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          path: 'knowledge:searchKnowledge',
-          args: { query, tool_name: tool, limit: 5 }
-        })
+      // Query via background proxy
+      const results = await convexQuery('knowledge:searchKnowledge', {
+        query,
+        tool_name: tool,
+        limit: 5
       });
 
-      if (!response.ok) {
-        console.log('[KG Connector] Search unavailable (status:', response.status, ')');
-        return [];
-      }
-
-      const results = await response.json();
       console.log('[KG Connector] ✓ Found', results.length, 'knowledge results');
       return results;
 
