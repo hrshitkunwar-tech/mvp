@@ -43,7 +43,9 @@ ContentAgent.prototype.init = function () {
                 'zoneguide/guidance.js',
                 'zoneguide/recorder.js',
                 'zoneguide/patterns.js',
-                'zoneguide/matcher.js'
+                'zoneguide/matcher.js',
+                'zoneguide/knowledge-connector.js',
+                'zoneguide/hybrid-matcher.js'
             ];
 
             function injectNext(index) {

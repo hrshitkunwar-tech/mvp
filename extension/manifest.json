@@ -54,6 +54,8 @@
         "zoneguide/recorder.js",
         "zoneguide/patterns.js",
         "zoneguide/matcher.js",
+        "zoneguide/knowledge-connector.js",
+        "zoneguide/hybrid-matcher.js",
         "zoneguide/styles.css"
       ],
       "matches": [
