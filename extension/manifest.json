@@ -61,7 +61,8 @@
   "commands": {
     "toggle-zoneguide-recording": {
       "suggested_key": {
-        "default": "Alt+Shift+R"
+        "default": "Ctrl+Shift+R",
+        "mac": "Command+Shift+R"
       },
       "description": "Start/stop ZoneGuide recording"
     }
