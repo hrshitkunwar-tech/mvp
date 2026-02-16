@@ -14,7 +14,7 @@
   'use strict';
 
   // Configuration
-  const CONVEX_URL = 'YOUR_CONVEX_URL'; // TODO: Set from backend config
+  const CONVEX_URL = 'https://abundant-porpoise-181.convex.cloud';
   const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
   // Cache
