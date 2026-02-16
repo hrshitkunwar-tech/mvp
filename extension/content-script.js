@@ -192,12 +192,15 @@ ContentAgent.prototype.init = function () {
     window.addEventListener('message', function (event) {
         if (event.source !== window) return;
         if (event.data.type === 'CONVEX_QUERY_REQUEST') {
-            console.log('[Navigator] Proxying Convex query to background');
+            console.log('[Navigator] 📨 Received CONVEX_QUERY_REQUEST from page, ID:', event.data.requestId);
+            console.log('[Navigator] 📤 Forwarding to background script...');
             chrome.runtime.sendMessage({
                 action: 'CONVEX_QUERY',
                 url: event.data.url,
                 payload: event.data.payload
             }, function (response) {
+                console.log('[Navigator] 📥 Got response from background:', response);
+                console.log('[Navigator] 📮 Posting response back to page, ID:', event.data.requestId);
                 window.postMessage({
                     type: 'CONVEX_QUERY_RESPONSE',
                     requestId: event.data.requestId,

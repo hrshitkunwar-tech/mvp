@@ -16,7 +16,7 @@
   // Configuration
   const CONVEX_URL = 'https://abundant-porpoise-181.convex.cloud';
   const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-  const ENABLE_CONVEX = false; // Set to false to disable Convex integration
+  const ENABLE_CONVEX = true; // Set to false to disable Convex integration
   const SUPPORTED_TOOLS = ['github', 'linear', 'figma', 'notion', 'slack']; // Only fetch KG for these
 
   // Cache
@@ -29,17 +29,25 @@
   function convexQuery(path, args) {
     return new Promise((resolve, reject) => {
       const requestId = Math.random().toString(36).substring(2);
-      const timeout = setTimeout(() => reject(new Error('Convex query timeout')), 10000);
+      const timeout = setTimeout(() => {
+        console.error('[KG Connector] ❌ Convex query timeout after 10s');
+        reject(new Error('Convex query timeout'));
+      }, 10000);
+
+      console.log('[KG Connector] 📤 Sending Convex query:', path, 'ID:', requestId);
 
       // Listen for response
       const listener = (event) => {
         if (event.data.type === 'CONVEX_QUERY_RESPONSE' && event.data.requestId === requestId) {
+          console.log('[KG Connector] 📥 Received response for ID:', requestId);
           clearTimeout(timeout);
           window.removeEventListener('message', listener);
 
           if (event.data.response.success) {
+            console.log('[KG Connector] ✅ Convex query successful');
             resolve(event.data.response.data);
           } else {
+            console.error('[KG Connector] ❌ Convex query failed:', event.data.response.error);
             reject(new Error(event.data.response.error));
           }
         }
@@ -48,6 +56,7 @@
       window.addEventListener('message', listener);
 
       // Send request to content script (which proxies to background)
+      console.log('[KG Connector] 📡 Posting message to content script');
       window.postMessage({
         type: 'CONVEX_QUERY_REQUEST',
         requestId: requestId,

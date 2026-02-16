@@ -71,21 +71,28 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     return true; // async
   } else if (request.action === 'CONVEX_QUERY') {
     // Proxy for Convex queries (bypasses CSP in content scripts)
+    console.log('[Navigator Background] 📨 CONVEX_QUERY received');
+    console.log('[Navigator Background] 🌐 Fetching from:', request.url);
+    console.log('[Navigator Background] 📦 Payload:', request.payload);
+
     fetch(request.url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(request.payload)
     })
       .then(function (res) {
+        console.log('[Navigator Background] 📡 Response status:', res.status);
         if (!res.ok) {
           throw new Error('Convex query failed: ' + res.status);
         }
         return res.json();
       })
       .then(function (data) {
+        console.log('[Navigator Background] ✅ Convex data received, sending back to content script');
         sendResponse({ success: true, data: data });
       })
       .catch(function (err) {
+        console.error('[Navigator Background] ❌ Convex fetch failed:', err.message);
         sendResponse({ success: false, error: err.message });
       });
     return true; // async
