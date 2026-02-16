@@ -526,35 +526,836 @@
     }
   };
 
+  // ============================================================
+  // LINEAR PATTERNS
+  // ============================================================
+
+  const LINEAR_PATTERNS = {
+    // ========== ISSUE MANAGEMENT ==========
+
+    'create-issue': {
+      keywords: ['create issue', 'new issue', 'add issue', 'make issue', 'create new issue'],
+      selectors: [
+        'button[aria-label*="Create issue"]',
+        'button:has-text("New issue")',
+        '[data-testid="create-issue-button"]',
+        'button[data-hotkey="c"]'
+      ],
+      message: '✨ Click here to create a new issue',
+      action: 'click',
+      confidence: 0.95,
+      context: ['linear.app/*']
+    },
+
+    'view-my-issues': {
+      keywords: ['my issues', 'assigned to me', 'my tasks', 'view my issues'],
+      selectors: [
+        'a[href*="/my-issues"]',
+        'nav a:has-text("My Issues")',
+        '[data-testid="my-issues-link"]'
+      ],
+      message: '📋 Click here to view your issues',
+      action: 'click',
+      confidence: 0.95,
+      context: ['linear.app/*']
+    },
+
+    'view-all-issues': {
+      keywords: ['all issues', 'see all issues', 'view issues', 'issue list'],
+      selectors: [
+        'a[href*="/issues"]',
+        'nav a:has-text("All issues")',
+        '[data-testid="all-issues-link"]'
+      ],
+      message: '📋 Click here to view all issues',
+      action: 'click',
+      confidence: 0.90,
+      context: ['linear.app/*']
+    },
+
+    'search-issues': {
+      keywords: ['search', 'find issue', 'search issues', 'find'],
+      selectors: [
+        'input[placeholder*="Search"]',
+        'button[aria-label*="Search"]',
+        '[data-testid="search-input"]',
+        'input[data-hotkey="/"]'
+      ],
+      message: '🔍 Click here to search issues',
+      action: 'click',
+      confidence: 0.90,
+      context: ['linear.app/*']
+    },
+
+    // ========== PROJECTS & CYCLES ==========
+
+    'view-projects': {
+      keywords: ['projects', 'view projects', 'see projects', 'all projects'],
+      selectors: [
+        'a[href*="/projects"]',
+        'nav a:has-text("Projects")',
+        '[data-testid="projects-link"]'
+      ],
+      message: '📊 Click here to view projects',
+      action: 'click',
+      confidence: 0.95,
+      context: ['linear.app/*']
+    },
+
+    'create-project': {
+      keywords: ['create project', 'new project', 'add project', 'make project'],
+      selectors: [
+        'button[aria-label*="Create project"]',
+        'button:has-text("New project")',
+        '[data-testid="create-project-button"]'
+      ],
+      message: '📊 Click here to create a new project',
+      action: 'click',
+      confidence: 0.90,
+      context: ['linear.app/*']
+    },
+
+    'view-cycles': {
+      keywords: ['cycles', 'view cycles', 'sprints', 'iterations'],
+      selectors: [
+        'a[href*="/cycles"]',
+        'nav a:has-text("Cycles")',
+        '[data-testid="cycles-link"]'
+      ],
+      message: '🔄 Click here to view cycles',
+      action: 'click',
+      confidence: 0.95,
+      context: ['linear.app/*']
+    },
+
+    'active-cycle': {
+      keywords: ['active cycle', 'current cycle', 'current sprint', 'active sprint'],
+      selectors: [
+        'a[href*="/cycle/current"]',
+        'button:has-text("Active")',
+        '[data-testid="active-cycle-link"]'
+      ],
+      message: '🔄 Click here to view active cycle',
+      action: 'click',
+      confidence: 0.90,
+      context: ['linear.app/*']
+    },
+
+    // ========== VIEWS & FILTERS ==========
+
+    'board-view': {
+      keywords: ['board view', 'kanban', 'board', 'show board'],
+      selectors: [
+        'button[aria-label*="Board"]',
+        'button:has-text("Board")',
+        '[data-testid="board-view-button"]'
+      ],
+      message: '📋 Click here to switch to board view',
+      action: 'click',
+      confidence: 0.90,
+      context: ['linear.app/*']
+    },
+
+    'list-view': {
+      keywords: ['list view', 'list', 'show list', 'table view'],
+      selectors: [
+        'button[aria-label*="List"]',
+        'button:has-text("List")',
+        '[data-testid="list-view-button"]'
+      ],
+      message: '📋 Click here to switch to list view',
+      action: 'click',
+      confidence: 0.90,
+      context: ['linear.app/*']
+    },
+
+    'filter-issues': {
+      keywords: ['filter', 'add filter', 'filter issues', 'show filters'],
+      selectors: [
+        'button[aria-label*="Filter"]',
+        'button:has-text("Filter")',
+        '[data-testid="filter-button"]'
+      ],
+      message: '🔍 Click here to filter issues',
+      action: 'click',
+      confidence: 0.85,
+      context: ['linear.app/*']
+    },
+
+    'group-by': {
+      keywords: ['group by', 'group issues', 'organize by', 'group'],
+      selectors: [
+        'button[aria-label*="Group"]',
+        'button:has-text("Group")',
+        '[data-testid="group-button"]'
+      ],
+      message: '📊 Click here to group issues',
+      action: 'click',
+      confidence: 0.85,
+      context: ['linear.app/*']
+    },
+
+    // ========== ROADMAP & INSIGHTS ==========
+
+    'view-roadmap': {
+      keywords: ['roadmap', 'view roadmap', 'product roadmap', 'timeline'],
+      selectors: [
+        'a[href*="/roadmap"]',
+        'nav a:has-text("Roadmap")',
+        '[data-testid="roadmap-link"]'
+      ],
+      message: '🗺️ Click here to view roadmap',
+      action: 'click',
+      confidence: 0.95,
+      context: ['linear.app/*']
+    },
+
+    'view-insights': {
+      keywords: ['insights', 'analytics', 'stats', 'metrics'],
+      selectors: [
+        'a[href*="/insights"]',
+        'nav a:has-text("Insights")',
+        '[data-testid="insights-link"]'
+      ],
+      message: '📈 Click here to view insights',
+      action: 'click',
+      confidence: 0.95,
+      context: ['linear.app/*']
+    },
+
+    // ========== TEAM & SETTINGS ==========
+
+    'team-settings': {
+      keywords: ['team settings', 'settings', 'preferences', 'configure'],
+      selectors: [
+        'a[href*="/settings"]',
+        'button[aria-label*="Settings"]',
+        'nav a:has-text("Settings")',
+        '[data-testid="settings-link"]'
+      ],
+      message: '⚙️ Click here to open settings',
+      action: 'click',
+      confidence: 0.90,
+      context: ['linear.app/*']
+    },
+
+    'notifications': {
+      keywords: ['notifications', 'view notifications', 'alerts', 'inbox'],
+      selectors: [
+        'button[aria-label*="Notifications"]',
+        'button[aria-label*="Inbox"]',
+        '[data-testid="notifications-button"]'
+      ],
+      message: '🔔 Click here to view notifications',
+      action: 'click',
+      confidence: 0.90,
+      context: ['linear.app/*']
+    },
+
+    // ========== LABELS & PRIORITIES ==========
+
+    'add-label': {
+      keywords: ['add label', 'label', 'tag', 'add tag'],
+      selectors: [
+        'button[aria-label*="Add label"]',
+        'button:has-text("Add label")',
+        '[data-testid="add-label-button"]'
+      ],
+      message: '🏷️ Click here to add labels',
+      action: 'click',
+      confidence: 0.85,
+      context: ['linear.app/*']
+    },
+
+    'set-priority': {
+      keywords: ['set priority', 'priority', 'change priority', 'urgency'],
+      selectors: [
+        'button[aria-label*="Priority"]',
+        'button:has-text("Priority")',
+        '[data-testid="priority-button"]'
+      ],
+      message: '⚡ Click here to set priority',
+      action: 'click',
+      confidence: 0.85,
+      context: ['linear.app/*']
+    },
+
+    'assign-to': {
+      keywords: ['assign', 'assign to', 'assignee', 'assign issue'],
+      selectors: [
+        'button[aria-label*="Assign"]',
+        'button[aria-label*="Assignee"]',
+        '[data-testid="assign-button"]'
+      ],
+      message: '👤 Click here to assign issue',
+      action: 'click',
+      confidence: 0.85,
+      context: ['linear.app/*']
+    },
+
+    'set-status': {
+      keywords: ['set status', 'change status', 'status', 'workflow'],
+      selectors: [
+        'button[aria-label*="Status"]',
+        'button:has-text("Status")',
+        '[data-testid="status-button"]'
+      ],
+      message: '📍 Click here to change status',
+      action: 'click',
+      confidence: 0.85,
+      context: ['linear.app/*']
+    }
+  };
+
+  // ============================================================
+  // FIGMA PATTERNS
+  // ============================================================
+
+  const FIGMA_PATTERNS = {
+    // ========== FILE OPERATIONS ==========
+
+    'create-file': {
+      keywords: ['create file', 'new file', 'new design', 'create design'],
+      selectors: [
+        'button:has-text("New file")',
+        'button[aria-label*="New file"]',
+        '[data-testid="new-file-button"]'
+      ],
+      message: '🎨 Click here to create a new file',
+      action: 'click',
+      confidence: 0.95,
+      context: ['figma.com/*']
+    },
+
+    'import-file': {
+      keywords: ['import', 'import file', 'upload file', 'upload'],
+      selectors: [
+        'button:has-text("Import")',
+        'button[aria-label*="Import"]',
+        '[data-testid="import-button"]'
+      ],
+      message: '📥 Click here to import a file',
+      action: 'click',
+      confidence: 0.90,
+      context: ['figma.com/*']
+    },
+
+    'share': {
+      keywords: ['share', 'share file', 'invite', 'collaborate'],
+      selectors: [
+        'button:has-text("Share")',
+        'button[aria-label*="Share"]',
+        '[data-testid="share-button"]'
+      ],
+      message: '🔗 Click here to share this file',
+      action: 'click',
+      confidence: 0.95,
+      context: ['figma.com/file/*', 'figma.com/design/*']
+    },
+
+    // ========== TOOLS ==========
+
+    'move-tool': {
+      keywords: ['move tool', 'select tool', 'move', 'select'],
+      selectors: [
+        'button[aria-label*="Move"]',
+        'button[data-tooltip*="Move"]',
+        '[data-testid="move-tool"]'
+      ],
+      message: '↖️ Click here to select move tool',
+      action: 'click',
+      confidence: 0.90,
+      context: ['figma.com/file/*', 'figma.com/design/*']
+    },
+
+    'frame-tool': {
+      keywords: ['frame', 'frame tool', 'create frame', 'add frame'],
+      selectors: [
+        'button[aria-label*="Frame"]',
+        'button[data-tooltip*="Frame"]',
+        '[data-testid="frame-tool"]'
+      ],
+      message: '🖼️ Click here to create a frame',
+      action: 'click',
+      confidence: 0.90,
+      context: ['figma.com/file/*', 'figma.com/design/*']
+    },
+
+    'text-tool': {
+      keywords: ['text', 'text tool', 'add text', 'type'],
+      selectors: [
+        'button[aria-label*="Text"]',
+        'button[data-tooltip*="Text"]',
+        '[data-testid="text-tool"]'
+      ],
+      message: '📝 Click here to add text',
+      action: 'click',
+      confidence: 0.95,
+      context: ['figma.com/file/*', 'figma.com/design/*']
+    },
+
+    'rectangle-tool': {
+      keywords: ['rectangle', 'rect', 'square', 'shape'],
+      selectors: [
+        'button[aria-label*="Rectangle"]',
+        'button[data-tooltip*="Rectangle"]',
+        '[data-testid="rectangle-tool"]'
+      ],
+      message: '▭ Click here to draw a rectangle',
+      action: 'click',
+      confidence: 0.90,
+      context: ['figma.com/file/*', 'figma.com/design/*']
+    },
+
+    'pen-tool': {
+      keywords: ['pen', 'pen tool', 'vector', 'draw'],
+      selectors: [
+        'button[aria-label*="Pen"]',
+        'button[data-tooltip*="Pen"]',
+        '[data-testid="pen-tool"]'
+      ],
+      message: '✏️ Click here to use pen tool',
+      action: 'click',
+      confidence: 0.90,
+      context: ['figma.com/file/*', 'figma.com/design/*']
+    },
+
+    // ========== LAYERS & COMPONENTS ==========
+
+    'show-layers': {
+      keywords: ['layers', 'show layers', 'layers panel', 'layer list'],
+      selectors: [
+        'button[aria-label*="Layers"]',
+        '[data-testid="layers-panel"]',
+        'button:has-text("Layers")'
+      ],
+      message: '📚 Click here to view layers',
+      action: 'click',
+      confidence: 0.90,
+      context: ['figma.com/file/*', 'figma.com/design/*']
+    },
+
+    'create-component': {
+      keywords: ['create component', 'make component', 'component', 'create symbol'],
+      selectors: [
+        'button[aria-label*="Create component"]',
+        '[data-testid="create-component"]',
+        'button:has-text("Create component")'
+      ],
+      message: '🧩 Click here to create a component',
+      action: 'click',
+      confidence: 0.85,
+      context: ['figma.com/file/*', 'figma.com/design/*']
+    },
+
+    'assets': {
+      keywords: ['assets', 'components', 'show assets', 'component library'],
+      selectors: [
+        'button[aria-label*="Assets"]',
+        '[data-testid="assets-panel"]',
+        'button:has-text("Assets")'
+      ],
+      message: '🎨 Click here to view assets',
+      action: 'click',
+      confidence: 0.90,
+      context: ['figma.com/file/*', 'figma.com/design/*']
+    },
+
+    // ========== PROPERTIES & STYLES ==========
+
+    'design-panel': {
+      keywords: ['design panel', 'properties', 'inspector', 'design'],
+      selectors: [
+        '[data-testid="design-panel"]',
+        'button[aria-label*="Design"]',
+        'button:has-text("Design")'
+      ],
+      message: '🎛️ Click here to view design properties',
+      action: 'click',
+      confidence: 0.85,
+      context: ['figma.com/file/*', 'figma.com/design/*']
+    },
+
+    'prototype': {
+      keywords: ['prototype', 'prototyping', 'interactions', 'prototype mode'],
+      selectors: [
+        'button[aria-label*="Prototype"]',
+        '[data-testid="prototype-tab"]',
+        'button:has-text("Prototype")'
+      ],
+      message: '🔗 Click here to add prototyping',
+      action: 'click',
+      confidence: 0.90,
+      context: ['figma.com/file/*', 'figma.com/design/*']
+    },
+
+    'inspect': {
+      keywords: ['inspect', 'code', 'inspect mode', 'css'],
+      selectors: [
+        'button[aria-label*="Inspect"]',
+        '[data-testid="inspect-tab"]',
+        'button:has-text("Inspect")'
+      ],
+      message: '🔍 Click here to inspect code',
+      action: 'click',
+      confidence: 0.90,
+      context: ['figma.com/file/*', 'figma.com/design/*']
+    },
+
+    // ========== COLLABORATION ==========
+
+    'comments': {
+      keywords: ['comments', 'add comment', 'feedback', 'comment mode'],
+      selectors: [
+        'button[aria-label*="Comment"]',
+        '[data-testid="comment-tool"]',
+        'button:has-text("Comment")'
+      ],
+      message: '💬 Click here to add comments',
+      action: 'click',
+      confidence: 0.95,
+      context: ['figma.com/file/*', 'figma.com/design/*']
+    },
+
+    'version-history': {
+      keywords: ['version history', 'history', 'versions', 'revisions'],
+      selectors: [
+        'button[aria-label*="Version history"]',
+        '[data-testid="version-history"]',
+        'button:has-text("Version history")'
+      ],
+      message: '📜 Click here to view version history',
+      action: 'click',
+      confidence: 0.85,
+      context: ['figma.com/file/*', 'figma.com/design/*']
+    },
+
+    'present': {
+      keywords: ['present', 'presentation', 'present mode', 'preview'],
+      selectors: [
+        'button[aria-label*="Present"]',
+        '[data-testid="present-button"]',
+        'button:has-text("Present")'
+      ],
+      message: '▶️ Click here to present',
+      action: 'click',
+      confidence: 0.95,
+      context: ['figma.com/file/*', 'figma.com/design/*']
+    }
+  };
+
+  // ============================================================
+  // NEW RELIC PATTERNS
+  // ============================================================
+
+  const NEWRELIC_PATTERNS = {
+    // ========== MAIN NAVIGATION ==========
+
+    'apm': {
+      keywords: ['apm', 'application monitoring', 'app performance', 'services'],
+      selectors: [
+        'a[href*="/apm"]',
+        'nav a:has-text("APM")',
+        'button:has-text("APM")',
+        '[data-testid="apm-link"]'
+      ],
+      message: '📊 Click here to view APM',
+      action: 'click',
+      confidence: 0.95,
+      context: ['one.newrelic.com/*', 'newrelic.com/*']
+    },
+
+    'browser': {
+      keywords: ['browser', 'browser monitoring', 'rum', 'frontend'],
+      selectors: [
+        'a[href*="/browser"]',
+        'nav a:has-text("Browser")',
+        'button:has-text("Browser")',
+        '[data-testid="browser-link"]'
+      ],
+      message: '🌐 Click here to view Browser monitoring',
+      action: 'click',
+      confidence: 0.95,
+      context: ['one.newrelic.com/*', 'newrelic.com/*']
+    },
+
+    'infrastructure': {
+      keywords: ['infrastructure', 'infra', 'servers', 'hosts'],
+      selectors: [
+        'a[href*="/infrastructure"]',
+        'nav a:has-text("Infrastructure")',
+        'button:has-text("Infrastructure")',
+        '[data-testid="infrastructure-link"]'
+      ],
+      message: '🖥️ Click here to view Infrastructure',
+      action: 'click',
+      confidence: 0.95,
+      context: ['one.newrelic.com/*', 'newrelic.com/*']
+    },
+
+    'logs': {
+      keywords: ['logs', 'log management', 'view logs', 'log viewer'],
+      selectors: [
+        'a[href*="/logs"]',
+        'nav a:has-text("Logs")',
+        'button:has-text("Logs")',
+        '[data-testid="logs-link"]'
+      ],
+      message: '📝 Click here to view Logs',
+      action: 'click',
+      confidence: 0.95,
+      context: ['one.newrelic.com/*', 'newrelic.com/*']
+    },
+
+    // ========== DASHBOARDS & ALERTS ==========
+
+    'dashboards': {
+      keywords: ['dashboards', 'view dashboards', 'custom dashboards', 'charts'],
+      selectors: [
+        'a[href*="/dashboards"]',
+        'nav a:has-text("Dashboards")',
+        'button:has-text("Dashboards")',
+        '[data-testid="dashboards-link"]'
+      ],
+      message: '📊 Click here to view Dashboards',
+      action: 'click',
+      confidence: 0.95,
+      context: ['one.newrelic.com/*', 'newrelic.com/*']
+    },
+
+    'create-dashboard': {
+      keywords: ['create dashboard', 'new dashboard', 'add dashboard'],
+      selectors: [
+        'button:has-text("Create dashboard")',
+        'button[aria-label*="Create dashboard"]',
+        '[data-testid="create-dashboard"]'
+      ],
+      message: '➕ Click here to create a dashboard',
+      action: 'click',
+      confidence: 0.90,
+      context: ['one.newrelic.com/*', 'newrelic.com/*']
+    },
+
+    'alerts': {
+      keywords: ['alerts', 'alert policies', 'notifications', 'incidents'],
+      selectors: [
+        'a[href*="/alerts"]',
+        'nav a:has-text("Alerts")',
+        'button:has-text("Alerts")',
+        '[data-testid="alerts-link"]'
+      ],
+      message: '🚨 Click here to view Alerts',
+      action: 'click',
+      confidence: 0.95,
+      context: ['one.newrelic.com/*', 'newrelic.com/*']
+    },
+
+    'create-alert': {
+      keywords: ['create alert', 'new alert', 'add alert', 'alert policy'],
+      selectors: [
+        'button:has-text("Create alert")',
+        'button[aria-label*="Create alert"]',
+        '[data-testid="create-alert"]'
+      ],
+      message: '🚨 Click here to create an alert',
+      action: 'click',
+      confidence: 0.90,
+      context: ['one.newrelic.com/*', 'newrelic.com/*']
+    },
+
+    // ========== QUERIES & EXPLORER ==========
+
+    'query-builder': {
+      keywords: ['query', 'nrql', 'query builder', 'data explorer'],
+      selectors: [
+        'a[href*="/query"]',
+        'button:has-text("Query")',
+        'nav a:has-text("Query your data")',
+        '[data-testid="query-link"]'
+      ],
+      message: '🔍 Click here to query data',
+      action: 'click',
+      confidence: 0.90,
+      context: ['one.newrelic.com/*', 'newrelic.com/*']
+    },
+
+    'explorer': {
+      keywords: ['explorer', 'entity explorer', 'services', 'entities'],
+      selectors: [
+        'a[href*="/explorer"]',
+        'button:has-text("Explorer")',
+        'nav a:has-text("Explorer")',
+        '[data-testid="explorer-link"]'
+      ],
+      message: '🔎 Click here to explore entities',
+      action: 'click',
+      confidence: 0.90,
+      context: ['one.newrelic.com/*', 'newrelic.com/*']
+    },
+
+    // ========== TRANSACTIONS & ERRORS ==========
+
+    'transactions': {
+      keywords: ['transactions', 'view transactions', 'transaction traces'],
+      selectors: [
+        'a[href*="/transactions"]',
+        'button:has-text("Transactions")',
+        'nav a:has-text("Transactions")',
+        '[data-testid="transactions-link"]'
+      ],
+      message: '📈 Click here to view transactions',
+      action: 'click',
+      confidence: 0.90,
+      context: ['one.newrelic.com/*', 'newrelic.com/*']
+    },
+
+    'errors': {
+      keywords: ['errors', 'error analytics', 'exceptions', 'error rate'],
+      selectors: [
+        'a[href*="/errors"]',
+        'button:has-text("Errors")',
+        'nav a:has-text("Errors")',
+        '[data-testid="errors-link"]'
+      ],
+      message: '❌ Click here to view errors',
+      action: 'click',
+      confidence: 0.90,
+      context: ['one.newrelic.com/*', 'newrelic.com/*']
+    },
+
+    'distributed-tracing': {
+      keywords: ['distributed tracing', 'traces', 'tracing', 'trace'],
+      selectors: [
+        'a[href*="/distributed-tracing"]',
+        'button:has-text("Distributed tracing")',
+        'nav a:has-text("Distributed tracing")',
+        '[data-testid="tracing-link"]'
+      ],
+      message: '🔗 Click here to view distributed tracing',
+      action: 'click',
+      confidence: 0.90,
+      context: ['one.newrelic.com/*', 'newrelic.com/*']
+    },
+
+    // ========== TIME PICKER ==========
+
+    'time-picker': {
+      keywords: ['time range', 'change time', 'time picker', 'date range'],
+      selectors: [
+        'button[aria-label*="time"]',
+        'button:has-text("Last 30")',
+        '[data-testid="time-picker"]'
+      ],
+      message: '⏰ Click here to change time range',
+      action: 'click',
+      confidence: 0.85,
+      context: ['one.newrelic.com/*', 'newrelic.com/*']
+    }
+  };
+
   // Export patterns
   window.__ZONEGUIDE_PATTERNS__ = {
     github: GITHUB_PATTERNS,
+    linear: LINEAR_PATTERNS,
+    figma: FIGMA_PATTERNS,
+    newrelic: NEWRELIC_PATTERNS,
 
     /**
      * Get all patterns for current site
      */
     getPatterns: function() {
-      if (window.location.hostname.includes('github.com')) {
+      const hostname = window.location.hostname;
+      if (hostname.includes('github.com')) {
         return GITHUB_PATTERNS;
+      } else if (hostname.includes('linear.app')) {
+        return LINEAR_PATTERNS;
+      } else if (hostname.includes('figma.com')) {
+        return FIGMA_PATTERNS;
+      } else if (hostname.includes('newrelic.com') || hostname.includes('one.newrelic.com')) {
+        return NEWRELIC_PATTERNS;
       }
       return {};
     },
 
     /**
-     * Get pattern by ID
+     * Get pattern by ID (searches all sites)
      */
     getPattern: function(id) {
-      return GITHUB_PATTERNS[id];
+      return GITHUB_PATTERNS[id] ||
+             LINEAR_PATTERNS[id] ||
+             FIGMA_PATTERNS[id] ||
+             NEWRELIC_PATTERNS[id] ||
+             null;
     },
 
     /**
-     * Get all pattern IDs
+     * Get all pattern IDs from current site
      */
     getPatternIds: function() {
-      return Object.keys(GITHUB_PATTERNS);
+      const patterns = this.getPatterns();
+      return Object.keys(patterns);
+    },
+
+    /**
+     * Get all pattern IDs from all sites
+     */
+    getAllPatternIds: function() {
+      return [
+        ...Object.keys(GITHUB_PATTERNS),
+        ...Object.keys(LINEAR_PATTERNS),
+        ...Object.keys(FIGMA_PATTERNS),
+        ...Object.keys(NEWRELIC_PATTERNS)
+      ];
+    },
+
+    /**
+     * Get site-specific patterns by site name
+     */
+    getPatternsBySite: function(site) {
+      const siteMap = {
+        'github': GITHUB_PATTERNS,
+        'linear': LINEAR_PATTERNS,
+        'figma': FIGMA_PATTERNS,
+        'newrelic': NEWRELIC_PATTERNS
+      };
+      return siteMap[site] || {};
+    },
+
+    /**
+     * Get all supported sites
+     */
+    getSupportedSites: function() {
+      return ['github', 'linear', 'figma', 'newrelic'];
+    },
+
+    /**
+     * Detect current site
+     */
+    detectCurrentSite: function() {
+      const hostname = window.location.hostname;
+      if (hostname.includes('github.com')) return 'github';
+      if (hostname.includes('linear.app')) return 'linear';
+      if (hostname.includes('figma.com')) return 'figma';
+      if (hostname.includes('newrelic.com') || hostname.includes('one.newrelic.com')) return 'newrelic';
+      return null;
+    },
+
+    /**
+     * Get total pattern count across all sites
+     */
+    getTotalPatternCount: function() {
+      return Object.keys(GITHUB_PATTERNS).length +
+             Object.keys(LINEAR_PATTERNS).length +
+             Object.keys(FIGMA_PATTERNS).length +
+             Object.keys(NEWRELIC_PATTERNS).length;
     }
   };
 
-  console.log('[ZoneGuide Patterns] Pattern database loaded:', Object.keys(GITHUB_PATTERNS).length, 'patterns');
+  console.log('[ZoneGuide Patterns] Pattern database loaded:',
+    Object.keys(GITHUB_PATTERNS).length, 'GitHub,',
+    Object.keys(LINEAR_PATTERNS).length, 'Linear,',
+    Object.keys(FIGMA_PATTERNS).length, 'Figma,',
+    Object.keys(NEWRELIC_PATTERNS).length, 'New Relic',
+    '(' + window.__ZONEGUIDE_PATTERNS__.getTotalPatternCount(), 'total)');
 
 })();
