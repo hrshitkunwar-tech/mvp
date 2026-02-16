@@ -128,10 +128,29 @@
 
     try {
       // Query via background proxy (bypasses CSP)
-      const knowledge = await convexQuery('knowledge:getKnowledgeByTool', {
+      const response = await convexQuery('knowledge:getKnowledgeByTool', {
         tool_name: toolName,
         limit: 100
       });
+
+      console.log('[KG Connector] 🔍 Raw Convex response:', response);
+      console.log('[KG Connector] 🔍 Response type:', typeof response);
+      console.log('[KG Connector] 🔍 Is array?', Array.isArray(response));
+
+      // Handle different response formats
+      let knowledge;
+      if (Array.isArray(response)) {
+        knowledge = response;
+      } else if (response && typeof response === 'object') {
+        // Response might be wrapped: { data: [...] } or { results: [...] } or { value: [...] }
+        knowledge = response.data || response.results || response.value || response.knowledge || [];
+        console.log('[KG Connector] 📦 Unwrapped knowledge from object property');
+      } else {
+        console.warn('[KG Connector] ⚠️ Unexpected response format, defaulting to empty array');
+        knowledge = [];
+      }
+
+      console.log('[KG Connector] ✅ Final knowledge array length:', knowledge.length);
 
       // Cache it
       knowledgeCache.set(toolName, {
@@ -159,6 +178,14 @@
    */
   function parseKnowledgeToPatterns(knowledgeDocs) {
     const patterns = {};
+
+    // Defensive: ensure we have an array
+    if (!Array.isArray(knowledgeDocs)) {
+      console.warn('[KG Connector] ⚠️ parseKnowledgeToPatterns received non-array:', typeof knowledgeDocs);
+      return patterns;
+    }
+
+    console.log('[KG Connector] 🔧 Parsing', knowledgeDocs.length, 'knowledge docs...');
 
     for (const doc of knowledgeDocs) {
       try {
