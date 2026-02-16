@@ -16,6 +16,8 @@
   // Configuration
   const CONVEX_URL = 'https://abundant-porpoise-181.convex.cloud';
   const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+  const ENABLE_CONVEX = true; // Set to false to disable Convex integration
+  const SUPPORTED_TOOLS = ['github', 'linear', 'figma', 'notion', 'slack']; // Only fetch KG for these
 
   // Cache
   let knowledgeCache = new Map();
@@ -60,6 +62,18 @@
    * Fetch knowledge from Convex for current tool
    */
   async function fetchToolKnowledge(toolName) {
+    // Check if Convex is enabled
+    if (!ENABLE_CONVEX) {
+      console.log('[KG Connector] Convex integration disabled, using static patterns only');
+      return [];
+    }
+
+    // Check if tool is supported
+    if (!SUPPORTED_TOOLS.includes(toolName)) {
+      console.log('[KG Connector] Tool not in supported list, skipping knowledge fetch:', toolName);
+      return [];
+    }
+
     // Check cache first
     const cached = knowledgeCache.get(toolName);
     if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
@@ -81,7 +95,9 @@
       });
 
       if (!response.ok) {
-        throw new Error(`Convex fetch failed: ${response.status}`);
+        // Silent failure - just log at debug level
+        console.log('[KG Connector] Convex not available (status:', response.status, '), continuing with static patterns');
+        return [];
       }
 
       const knowledge = await response.json();
@@ -92,11 +108,12 @@
         timestamp: Date.now()
       });
 
-      console.log('[KG Connector] Fetched', knowledge.length, 'knowledge docs for', toolName);
+      console.log('[KG Connector] ✓ Fetched', knowledge.length, 'knowledge docs for', toolName);
       return knowledge;
 
     } catch (error) {
-      console.error('[KG Connector] Failed to fetch knowledge:', error);
+      // Silent failure - knowledge graph is optional
+      console.log('[KG Connector] Convex unavailable, continuing with static patterns');
       return [];
     }
   }
@@ -237,8 +254,11 @@
    * This can be used as fallback when pattern matching fails
    */
   async function searchKnowledge(query, tool = null) {
+    // Check if enabled and tool supported
+    if (!ENABLE_CONVEX) return [];
+
     tool = tool || currentTool;
-    if (!tool) return [];
+    if (!tool || !SUPPORTED_TOOLS.includes(tool)) return [];
 
     console.log('[KG Connector] Searching knowledge:', query, 'for tool:', tool);
 
@@ -253,15 +273,16 @@
       });
 
       if (!response.ok) {
-        throw new Error(`Convex search failed: ${response.status}`);
+        console.log('[KG Connector] Search unavailable (status:', response.status, ')');
+        return [];
       }
 
       const results = await response.json();
-      console.log('[KG Connector] Found', results.length, 'knowledge results');
+      console.log('[KG Connector] ✓ Found', results.length, 'knowledge results');
       return results;
 
     } catch (error) {
-      console.error('[KG Connector] Search failed:', error);
+      console.log('[KG Connector] Search unavailable, using patterns only');
       return [];
     }
   }
