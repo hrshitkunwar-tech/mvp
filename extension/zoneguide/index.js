@@ -91,6 +91,7 @@
           var zone = message.payload.zone;
           var duration = message.payload.duration || 2500;
           var selector = message.payload.selector;
+          var instructionText = message.payload.message;
 
           // If selector provided, try to highlight specific element
           if (selector) {
@@ -98,27 +99,50 @@
               var element = document.querySelector(selector);
 
               if (element) {
+                // Check if enhanced guidance is available
+                var useEnhancedGuidance = window.__ZONEGUIDE_GUIDANCE__ && message.payload.useSpotlight !== false;
+
                 // Scroll element into view if needed
                 if (!zones.isElementInViewport(element)) {
                   zones.scrollToElement(element).then(function() {
-                    // Show zone overlay after scroll
+                    if (useEnhancedGuidance) {
+                      // Use new spotlight + arrow guidance
+                      window.__ZONEGUIDE_GUIDANCE__.show(element, {
+                        message: instructionText,
+                        duration: duration,
+                        arrowPosition: 'auto',
+                        hideOnClick: true
+                      });
+                    } else {
+                      // Fallback to zone heatmap + pulse
+                      zones.showZoneHeatmap(zone, duration);
+                      element.classList.add('zg-element-pulse');
+                      setTimeout(function() {
+                        element.classList.remove('zg-element-pulse');
+                      }, duration);
+                    }
+                  });
+                } else {
+                  // Element already visible
+                  if (useEnhancedGuidance) {
+                    // Use new spotlight + arrow guidance
+                    window.__ZONEGUIDE_GUIDANCE__.show(element, {
+                      message: instructionText,
+                      duration: duration,
+                      arrowPosition: 'auto',
+                      hideOnClick: true
+                    });
+                  } else {
+                    // Fallback to zone heatmap + pulse
                     zones.showZoneHeatmap(zone, duration);
-                    // Add element pulse effect
                     element.classList.add('zg-element-pulse');
                     setTimeout(function() {
                       element.classList.remove('zg-element-pulse');
                     }, duration);
-                  });
-                } else {
-                  // Element already visible
-                  zones.showZoneHeatmap(zone, duration);
-                  element.classList.add('zg-element-pulse');
-                  setTimeout(function() {
-                    element.classList.remove('zg-element-pulse');
-                  }, duration);
+                  }
                 }
 
-                sendResponse({ success: true, found_element: true });
+                sendResponse({ success: true, found_element: true, enhanced_guidance: useEnhancedGuidance });
                 break;
               }
             } catch (e) {
@@ -180,6 +204,28 @@
       },
       getElementZone: function(element) {
         return zones.getZone(element);
+      },
+      // Enhanced guidance testing
+      spotlightElement: function(selector, message, duration) {
+        if (window.__ZONEGUIDE_GUIDANCE__) {
+          var element = typeof selector === 'string' ? document.querySelector(selector) : selector;
+          if (element) {
+            window.__ZONEGUIDE_GUIDANCE__.show(element, {
+              message: message || 'Click here',
+              duration: duration || 5000,
+              arrowPosition: 'auto'
+            });
+          } else {
+            console.warn('[ZoneGuide] Element not found:', selector);
+          }
+        } else {
+          console.warn('[ZoneGuide] Enhanced guidance not loaded');
+        }
+      },
+      hideSpotlight: function() {
+        if (window.__ZONEGUIDE_GUIDANCE__) {
+          window.__ZONEGUIDE_GUIDANCE__.hide();
+        }
       }
     }
   };

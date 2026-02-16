@@ -39,6 +39,7 @@ ContentAgent.prototype.init = function () {
                 'zoneguide/index.js',
                 'zoneguide/selector.js',
                 'zoneguide/storage.js',
+                'zoneguide/guidance.js',
                 'zoneguide/recorder.js'
             ];
 
