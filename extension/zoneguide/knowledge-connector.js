@@ -16,7 +16,7 @@
   // Configuration
   const CONVEX_URL = 'https://abundant-porpoise-181.convex.cloud';
   const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-  const ENABLE_CONVEX = true; // Set to false to disable Convex integration
+  const ENABLE_CONVEX = false; // Set to false to disable Convex integration
   const SUPPORTED_TOOLS = ['github', 'linear', 'figma', 'notion', 'slack']; // Only fetch KG for these
 
   // Cache
