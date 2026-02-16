@@ -91,7 +91,7 @@
     },
 
     'upload-file': {
-      keywords: ['upload file', 'upload', 'add file from computer'],
+      keywords: ['upload file', 'upload', 'add file from computer', 'upload files', 'upload a file', 'add files'],
       selectors: [
         'a[href*="/upload"]',
         'button:has-text("Upload files")',
@@ -134,7 +134,7 @@
     // ========== PULL REQUESTS ==========
 
     'create-pr': {
-      keywords: ['create pull request', 'new pull request', 'open pr', 'make pr', 'create pr'],
+      keywords: ['create pull request', 'new pull request', 'open pr', 'make pr', 'create pr', 'open a pull request', 'open pull request', 'start pr', 'start pull request'],
       selectors: [
         'a[href*="/compare"]',
         'button:has-text("Pull request")',
@@ -177,7 +177,7 @@
     // ========== ISSUES ==========
 
     'create-issue': {
-      keywords: ['create issue', 'new issue', 'open issue', 'report issue', 'make issue'],
+      keywords: ['create issue', 'new issue', 'open issue', 'report issue', 'make issue', 'create an issue', 'open an issue', 'report bug', 'submit issue'],
       selectors: [
         'a[href*="/issues/new"]',
         'button:has-text("New issue")',
@@ -245,7 +245,7 @@
     },
 
     'go-to-file': {
-      keywords: ['go to file', 'find file', 'search file', 'open file'],
+      keywords: ['go to file', 'find file', 'search file', 'open file', 'find a file', 'locate file', 'search for file'],
       selectors: [
         'button[data-hotkey="t"]',
         'a:has-text("Go to file")',
@@ -301,6 +301,228 @@
       action: 'click',
       confidence: 0.95,
       context: ['github.com/*/*']
+    },
+
+    // ========== DOWNLOADS ==========
+
+    'download-zip': {
+      keywords: ['download zip', 'download as zip', 'download repository', 'download repo as zip', 'get zip'],
+      selectors: [
+        'a[href*="/archive/"]',
+        'a:has-text("Download ZIP")',
+        'button:has-text("Code")',
+        'summary:has-text("Code")'
+      ],
+      message: '📦 Click here to download as ZIP',
+      action: 'click',
+      confidence: 0.85,
+      context: ['github.com/*/*']
+    },
+
+    'view-releases': {
+      keywords: ['view releases', 'see releases', 'releases', 'download release', 'latest release'],
+      selectors: [
+        'a[href*="/releases"]',
+        'a:has-text("Releases")',
+        'nav a:has-text("Releases")',
+        'a[data-selected-links*="releases"]'
+      ],
+      message: '🚀 Click here to view releases',
+      action: 'click',
+      confidence: 0.95,
+      context: ['github.com/*/*']
+    },
+
+    // ========== BRANCHES & TAGS ==========
+
+    'view-branches': {
+      keywords: ['view branches', 'see branches', 'branches', 'all branches', 'branch list'],
+      selectors: [
+        'a[href*="/branches"]',
+        'summary:has-text("branches")',
+        'button:has-text("branches")',
+        '[data-hotkey="b"]'
+      ],
+      message: '🌿 Click here to view all branches',
+      action: 'click',
+      confidence: 0.90,
+      context: ['github.com/*/*']
+    },
+
+    'create-branch': {
+      keywords: ['create branch', 'new branch', 'make branch', 'add branch', 'create new branch'],
+      selectors: [
+        'summary:has-text("branches")',
+        'button:has-text("branches")',
+        'a[href*="/branches"]',
+        '[aria-label*="branch"]'
+      ],
+      message: '🌿 Click here to create a new branch',
+      action: 'click',
+      confidence: 0.80,
+      context: ['github.com/*/*']
+    },
+
+    'view-tags': {
+      keywords: ['view tags', 'see tags', 'tags', 'all tags', 'tag list'],
+      selectors: [
+        'a[href*="/tags"]',
+        'a:has-text("Tags")',
+        'button:has-text("tags")'
+      ],
+      message: '🏷️ Click here to view all tags',
+      action: 'click',
+      confidence: 0.90,
+      context: ['github.com/*/*']
+    },
+
+    // ========== COMPARISONS ==========
+
+    'compare-branches': {
+      keywords: ['compare branches', 'compare', 'diff branches', 'compare commits'],
+      selectors: [
+        'a[href*="/compare"]',
+        'button:has-text("Compare")',
+        'a:has-text("Compare")'
+      ],
+      message: '🔀 Click here to compare branches',
+      action: 'click',
+      confidence: 0.85,
+      context: ['github.com/*/*']
+    },
+
+    // ========== TABS ==========
+
+    'view-actions': {
+      keywords: ['view actions', 'see actions', 'actions', 'ci', 'workflows', 'github actions'],
+      selectors: [
+        'a[data-selected-links*="actions"]',
+        'a[href*="/actions"]',
+        'nav a:has-text("Actions")'
+      ],
+      message: '⚡ Click here to view GitHub Actions',
+      action: 'click',
+      confidence: 0.95,
+      context: ['github.com/*/*']
+    },
+
+    'view-projects': {
+      keywords: ['view projects', 'see projects', 'projects', 'project board', 'kanban'],
+      selectors: [
+        'a[data-selected-links*="projects"]',
+        'a[href*="/projects"]',
+        'nav a:has-text("Projects")'
+      ],
+      message: '📊 Click here to view projects',
+      action: 'click',
+      confidence: 0.95,
+      context: ['github.com/*/*']
+    },
+
+    'view-wiki': {
+      keywords: ['view wiki', 'see wiki', 'wiki', 'documentation'],
+      selectors: [
+        'a[data-selected-links*="wiki"]',
+        'a[href*="/wiki"]',
+        'nav a:has-text("Wiki")'
+      ],
+      message: '📚 Click here to view the wiki',
+      action: 'click',
+      confidence: 0.95,
+      context: ['github.com/*/*']
+    },
+
+    'view-security': {
+      keywords: ['view security', 'see security', 'security', 'security tab', 'vulnerabilities'],
+      selectors: [
+        'a[data-selected-links*="security"]',
+        'a[href*="/security"]',
+        'nav a:has-text("Security")'
+      ],
+      message: '🔒 Click here to view security',
+      action: 'click',
+      confidence: 0.95,
+      context: ['github.com/*/*']
+    },
+
+    'view-insights': {
+      keywords: ['view insights', 'see insights', 'insights', 'analytics', 'stats'],
+      selectors: [
+        'a[data-selected-links*="insights"]',
+        'a[href*="/pulse"]',
+        'nav a:has-text("Insights")'
+      ],
+      message: '📈 Click here to view insights',
+      action: 'click',
+      confidence: 0.95,
+      context: ['github.com/*/*']
+    },
+
+    'view-discussions': {
+      keywords: ['view discussions', 'see discussions', 'discussions', 'community discussions'],
+      selectors: [
+        'a[data-selected-links*="discussions"]',
+        'a[href*="/discussions"]',
+        'nav a:has-text("Discussions")'
+      ],
+      message: '💬 Click here to view discussions',
+      action: 'click',
+      confidence: 0.95,
+      context: ['github.com/*/*']
+    },
+
+    // ========== ADDITIONAL ACTIONS ==========
+
+    'view-contributors': {
+      keywords: ['view contributors', 'see contributors', 'contributors', 'who contributed'],
+      selectors: [
+        'a[href*="/graphs/contributors"]',
+        'a:has-text("contributors")',
+        'a:has-text("Contributors")'
+      ],
+      message: '👥 Click here to view contributors',
+      action: 'click',
+      confidence: 0.90,
+      context: ['github.com/*/*']
+    },
+
+    'view-network': {
+      keywords: ['view network', 'network graph', 'fork network', 'see forks'],
+      selectors: [
+        'a[href*="/network"]',
+        'a:has-text("Network")',
+        'nav a:has-text("Network")'
+      ],
+      message: '🕸️ Click here to view network graph',
+      action: 'click',
+      confidence: 0.85,
+      context: ['github.com/*/*']
+    },
+
+    'blame-file': {
+      keywords: ['blame', 'git blame', 'who wrote this', 'file blame', 'show blame'],
+      selectors: [
+        'button[aria-label*="Blame"]',
+        'a:has-text("Blame")',
+        'button:has-text("Blame")'
+      ],
+      message: '🔍 Click here to view blame',
+      action: 'click',
+      confidence: 0.85,
+      context: ['github.com/*/*/blob/*']
+    },
+
+    'view-history': {
+      keywords: ['file history', 'view history', 'commit history for file', 'history'],
+      selectors: [
+        'a[aria-label*="History"]',
+        'a:has-text("History")',
+        'button:has-text("History")'
+      ],
+      message: '📜 Click here to view file history',
+      action: 'click',
+      confidence: 0.90,
+      context: ['github.com/*/*/blob/*']
     }
   };
 
