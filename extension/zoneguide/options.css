@@ -1,0 +1,1003 @@
+/* ============================================================
+   ZoneGuide Pattern Manager - Options Page Styles
+   ============================================================ */
+
+/* Reset & Base */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  font-size: 14px;
+  color: #1a1a2e;
+  background: #f0f2f5;
+  min-width: 860px;
+}
+
+/* ============================================================
+   Header
+   ============================================================ */
+.header {
+  background: linear-gradient(135deg, #1e1b4b 0%, #4c1d95 55%, #5b21b6 100%);
+  color: white;
+  padding: 22px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 4px 20px rgba(91, 33, 182, 0.35);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-content h1 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+.header-content .subtitle {
+  font-size: 12px;
+  opacity: 0.72;
+  margin-top: 3px;
+}
+
+.header-stats {
+  display: flex;
+  gap: 12px;
+}
+
+.stat-card {
+  background: rgba(255, 255, 255, 0.13);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 10px;
+  padding: 9px 18px;
+  text-align: center;
+  min-width: 88px;
+  backdrop-filter: blur(8px);
+}
+
+.stat-value {
+  display: block;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.stat-label {
+  display: block;
+  font-size: 10px;
+  opacity: 0.72;
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+/* ============================================================
+   Tabs
+   ============================================================ */
+.tabs {
+  display: flex;
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0 28px;
+  gap: 2px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.tab {
+  padding: 13px 17px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  white-space: nowrap;
+  border-radius: 6px 6px 0 0;
+}
+
+.tab:hover {
+  color: #5b21b6;
+  background: #f8f7ff;
+}
+
+.tab.active {
+  color: #5b21b6;
+  border-bottom-color: #5b21b6;
+  font-weight: 600;
+}
+
+/* ============================================================
+   Content Area
+   ============================================================ */
+.content {
+  padding: 24px 32px 40px;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.tab-content {
+  display: none;
+  animation: fadeIn 0.15s ease;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================
+   Section Headers
+   ============================================================ */
+.section-header {
+  margin-bottom: 20px;
+}
+
+.section-header h2 {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1e1b4b;
+}
+
+.section-header .description {
+  font-size: 13px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+/* Search / Filter Bar */
+.search-bar {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.search-bar input,
+.search-bar select {
+  padding: 8px 13px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  background: white;
+  color: #1f2937;
+}
+
+.search-bar input {
+  flex: 1;
+}
+
+.search-bar input:focus,
+.search-bar select:focus {
+  border-color: #5b21b6;
+  box-shadow: 0 0 0 3px rgba(91, 33, 182, 0.1);
+}
+
+.search-bar select {
+  min-width: 140px;
+  cursor: pointer;
+}
+
+/* ============================================================
+   Site Sections (Patterns Tab)
+   ============================================================ */
+.site-section {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+
+.site-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 13px 18px;
+  border-left: 4px solid var(--site-color, #888);
+  background: #fafafa;
+  cursor: default;
+}
+
+.site-section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.site-icon {
+  font-size: 17px;
+}
+
+.site-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #1e1b4b;
+}
+
+.pattern-count {
+  font-size: 11px;
+  color: #64748b;
+  background: #f0f2f5;
+  padding: 2px 9px;
+  border-radius: 12px;
+}
+
+.collapse-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  color: #94a3b8;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.12s, color 0.12s;
+  user-select: none;
+}
+
+.collapse-btn:hover {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.patterns-list {
+  border-top: 1px solid #f0f2f5;
+}
+
+.patterns-list.collapsed {
+  display: none;
+}
+
+/* ============================================================
+   Pattern Rows
+   ============================================================ */
+.pattern-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 18px;
+  border-bottom: 1px solid #f8fafc;
+  transition: background 0.1s;
+  gap: 12px;
+}
+
+.pattern-row:last-child {
+  border-bottom: none;
+}
+
+.pattern-row:hover {
+  background: #f8f7ff;
+}
+
+.pattern-row.disabled {
+  opacity: 0.4;
+}
+
+.pattern-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.pattern-id {
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: #4c1d95;
+  background: #f3e8ff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.pattern-message {
+  font-size: 12px;
+  color: #475569;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pattern-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.pattern-keywords {
+  font-size: 11px;
+  color: #94a3b8;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pattern-confidence {
+  font-size: 11px;
+  font-weight: 600;
+  color: #059669;
+  background: #d1fae5;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.pattern-usage {
+  font-size: 11px;
+  color: #5b21b6;
+  background: #ede9fe;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.no-patterns {
+  padding: 16px 18px;
+  font-size: 13px;
+  color: #94a3b8;
+  text-align: center;
+}
+
+/* ============================================================
+   Badges
+   ============================================================ */
+.badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 12px;
+  background: #e2e8f0;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.badge-custom {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badge-disabled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* ============================================================
+   Form (Add/Edit Tab)
+   ============================================================ */
+.form-container {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  padding: 28px 32px;
+  max-width: 700px;
+}
+
+.form-group {
+  margin-bottom: 18px;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 600;
+  font-size: 13px;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+  color: #1f2937;
+  background: white;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  border-color: #5b21b6;
+  box-shadow: 0 0 0 3px rgba(91, 33, 182, 0.1);
+}
+
+.form-group input:disabled {
+  background: #f8fafc;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.form-group small {
+  display: block;
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 72px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 12px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 24px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.form-message {
+  margin-top: 14px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.form-message.success {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+}
+
+.form-message.error {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+/* ============================================================
+   Buttons
+   ============================================================ */
+.btn {
+  padding: 9px 18px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn-primary {
+  background: #5b21b6;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #4c1d95;
+  box-shadow: 0 4px 12px rgba(91,33,182,0.3);
+}
+
+.btn-secondary {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.btn-secondary:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.btn-danger {
+  background: #fff0f0;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+}
+
+.btn-danger:hover {
+  background: #fee2e2;
+}
+
+.btn-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  opacity: 0.65;
+  transition: opacity 0.12s, background 0.12s;
+}
+
+.btn-icon:hover {
+  opacity: 1;
+  background: #ede9fe;
+}
+
+/* ============================================================
+   Sites Tab
+   ============================================================ */
+.sites-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 16px;
+}
+
+.site-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  padding: 20px;
+  transition: box-shadow 0.15s;
+}
+
+.site-card:hover {
+  box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+}
+
+.site-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.site-info h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e1b4b;
+}
+
+.site-url {
+  font-size: 11px;
+  color: #94a3b8;
+  font-family: monospace;
+  margin-top: 2px;
+  display: block;
+}
+
+.site-stats {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.site-description {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+/* Toggle Switch */
+.toggle-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: #cbd5e1;
+  border-radius: 24px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  left: 3px;
+  top: 3px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background: #5b21b6;
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+}
+
+/* ============================================================
+   Import/Export Tab
+   ============================================================ */
+.import-export-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.action-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  padding: 24px;
+}
+
+.action-card h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e1b4b;
+  margin-bottom: 6px;
+}
+
+.action-card > p {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 18px;
+}
+
+.export-options {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-bottom: 20px;
+}
+
+.export-options label,
+.import-options label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  color: #374151;
+  cursor: pointer;
+  user-select: none;
+}
+
+.export-options label:hover,
+.import-options label:hover {
+  color: #1e1b4b;
+}
+
+.export-options input[type="checkbox"],
+.import-options input[type="radio"] {
+  accent-color: #5b21b6;
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.import-zone {
+  border: 2px dashed #d1d5db;
+  border-radius: 10px;
+  padding: 28px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  margin-bottom: 14px;
+  background: #f8fafc;
+}
+
+.import-zone:hover,
+.import-zone.drag-over {
+  border-color: #5b21b6;
+  background: #f5f3ff;
+}
+
+.import-icon {
+  font-size: 32px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.import-content p {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+}
+
+.import-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.import-status {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.import-status.success {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+}
+
+.import-status.error {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+/* ============================================================
+   Analytics Tab
+   ============================================================ */
+.analytics-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.analytics-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  padding: 18px;
+  text-align: center;
+  transition: box-shadow 0.15s;
+}
+
+.analytics-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.09);
+}
+
+.analytics-card h4 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  margin-bottom: 10px;
+}
+
+.analytics-value {
+  display: block;
+  font-size: 30px;
+  font-weight: 700;
+  color: #1e1b4b;
+  line-height: 1;
+}
+
+.charts-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.chart-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  padding: 20px;
+}
+
+.chart-card.full-width {
+  grid-column: 1 / -1;
+}
+
+.chart-card h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e1b4b;
+  margin-bottom: 16px;
+}
+
+.chart {
+  min-height: 100px;
+}
+
+.no-data {
+  font-size: 13px;
+  color: #94a3b8;
+  text-align: center;
+  padding: 24px 0;
+}
+
+/* Bar Charts */
+.chart-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.chart-label {
+  font-size: 11px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  color: #374151;
+  width: 140px;
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chart-bar-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chart-bar {
+  height: 18px;
+  background: linear-gradient(90deg, #5b21b6, #8b5cf6);
+  border-radius: 4px;
+  min-width: 4px;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chart-value {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  flex-shrink: 0;
+  min-width: 24px;
+}
+
+/* Activity List */
+.activity-list {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.activity-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.activity-list::-webkit-scrollbar-track {
+  background: #f8fafc;
+}
+
+.activity-list::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 2px;
+}
+
+.activity-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f8fafc;
+  font-size: 12px;
+}
+
+.activity-item:last-child {
+  border-bottom: none;
+}
+
+.activity-time {
+  color: #94a3b8;
+  flex-shrink: 0;
+  width: 140px;
+  font-size: 11px;
+}
+
+.activity-site {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: #e2e8f0;
+  color: #475569;
+  flex-shrink: 0;
+}
+
+.activity-pattern {
+  font-family: monospace;
+  color: #374151;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-status {
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.activity-status.success { color: #10b981; }
+.activity-status.fail    { color: #ef4444; }
+
+.analytics-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* ============================================================
+   Footer
+   ============================================================ */
+.footer {
+  text-align: center;
+  padding: 18px;
+  font-size: 12px;
+  color: #94a3b8;
+  border-top: 1px solid #e2e8f0;
+  background: white;
+  margin-top: 28px;
+}
+
+/* ============================================================
+   Empty / Loading States
+   ============================================================ */
+.empty-state {
+  text-align: center;
+  padding: 48px;
+  color: #94a3b8;
+  font-size: 14px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width: 900px) {
+  .import-export-container,
+  .charts-container {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-card.full-width {
+    grid-column: 1;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .header-stats {
+    flex-wrap: wrap;
+  }
+
+  .content {
+    padding: 16px 16px 32px;
+  }
+}

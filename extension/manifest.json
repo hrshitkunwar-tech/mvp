@@ -43,6 +43,8 @@
       "all_frames": true
     }
   ],
+  "options_page": "zoneguide/options.html",
+
   "web_accessible_resources": [
     {
       "resources": [
@@ -56,7 +58,10 @@
         "zoneguide/matcher.js",
         "zoneguide/knowledge-connector.js",
         "zoneguide/hybrid-matcher.js",
-        "zoneguide/styles.css"
+        "zoneguide/styles.css",
+        "zoneguide/options.html",
+        "zoneguide/options.css",
+        "zoneguide/options.js"
       ],
       "matches": [
         "<all_urls>"
