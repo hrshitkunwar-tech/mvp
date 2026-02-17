@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZoneGuide Pattern Manager</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-content">
+      <h1>🎯 ZoneGuide Pattern Manager</h1>
+      <p class="subtitle">Manage navigation patterns across all sites</p>
+    </div>
+    <div class="header-stats">
+      <div class="stat-card">
+        <span class="stat-value" id="total-patterns">91</span>
+        <span class="stat-label">Total Patterns</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value" id="enabled-sites">4</span>
+        <span class="stat-label">Active Sites</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value" id="custom-patterns">0</span>
+        <span class="stat-label">Custom Patterns</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <nav class="tabs">
+    <button class="tab active" data-tab="patterns">
+      📋 View Patterns
+    </button>
+    <button class="tab" data-tab="add-edit">
+      ✏️ Add/Edit
+    </button>
+    <button class="tab" data-tab="sites">
+      🌐 Manage Sites
+    </button>
+    <button class="tab" data-tab="import-export">
+      📦 Import/Export
+    </button>
+    <button class="tab" data-tab="analytics">
+      📊 Analytics
+    </button>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="content">
+
+    <!-- TAB 1: View All Patterns -->
+    <section id="patterns-tab" class="tab-content active">
+      <div class="section-header">
+        <h2>All Patterns</h2>
+        <div class="search-bar">
+          <input type="text" id="pattern-search" placeholder="🔍 Search patterns..." />
+          <select id="site-filter">
+            <option value="all">All Sites</option>
+            <option value="github">GitHub</option>
+            <option value="linear">Linear</option>
+            <option value="figma">Figma</option>
+            <option value="newrelic">New Relic</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Pattern List by Site -->
+      <div id="patterns-container">
+        <!-- Will be populated by JS -->
+      </div>
+    </section>
+
+    <!-- TAB 2: Add/Edit Patterns -->
+    <section id="add-edit-tab" class="tab-content">
+      <div class="section-header">
+        <h2>Add/Edit Custom Pattern</h2>
+        <p class="description">Create or modify custom navigation patterns</p>
+      </div>
+
+      <div class="form-container">
+        <form id="pattern-form">
+          <!-- Pattern ID -->
+          <div class="form-group">
+            <label for="pattern-id">Pattern ID*</label>
+            <input type="text" id="pattern-id" placeholder="e.g., create-issue" required />
+            <small>Unique identifier (lowercase, hyphens only)</small>
+          </div>
+
+          <!-- Site -->
+          <div class="form-group">
+            <label for="pattern-site">Site*</label>
+            <select id="pattern-site" required>
+              <option value="">Select a site...</option>
+              <option value="github">GitHub</option>
+              <option value="linear">Linear</option>
+              <option value="figma">Figma</option>
+              <option value="newrelic">New Relic</option>
+              <option value="custom">Custom Site</option>
+            </select>
+          </div>
+
+          <!-- Custom Site Hostname (shown if Custom is selected) -->
+          <div class="form-group" id="custom-hostname-group" style="display: none;">
+            <label for="custom-hostname">Custom Site Hostname*</label>
+            <input type="text" id="custom-hostname" placeholder="e.g., example.com" />
+            <small>The hostname where this pattern applies</small>
+          </div>
+
+          <!-- Keywords -->
+          <div class="form-group">
+            <label for="pattern-keywords">Keywords*</label>
+            <input type="text" id="pattern-keywords" placeholder="e.g., create issue, new issue, add issue" required />
+            <small>Comma-separated keywords users might say</small>
+          </div>
+
+          <!-- Selectors -->
+          <div class="form-group">
+            <label for="pattern-selectors">CSS Selectors*</label>
+            <textarea id="pattern-selectors" rows="3" placeholder="button[aria-label='Create issue']&#10;.create-button&#10;#new-issue" required></textarea>
+            <small>One selector per line (highest priority first)</small>
+          </div>
+
+          <!-- Message -->
+          <div class="form-group">
+            <label for="pattern-message">User Message*</label>
+            <input type="text" id="pattern-message" placeholder="e.g., ✨ Click here to create a new issue" required />
+            <small>Friendly message shown to user</small>
+          </div>
+
+          <!-- Action -->
+          <div class="form-group">
+            <label for="pattern-action">Action*</label>
+            <select id="pattern-action" required>
+              <option value="click">Click</option>
+              <option value="focus">Focus</option>
+              <option value="navigate">Navigate</option>
+            </select>
+          </div>
+
+          <!-- Confidence -->
+          <div class="form-group">
+            <label for="pattern-confidence">Confidence (0-1)*</label>
+            <input type="number" id="pattern-confidence" min="0" max="1" step="0.05" value="0.85" required />
+            <small>Higher = more reliable pattern</small>
+          </div>
+
+          <!-- Context Patterns -->
+          <div class="form-group">
+            <label for="pattern-context">Context (URL patterns)</label>
+            <textarea id="pattern-context" rows="2" placeholder="example.com/*&#10;example.com/page/*"></textarea>
+            <small>One URL pattern per line (optional)</small>
+          </div>
+
+          <!-- Form Actions -->
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">💾 Save Pattern</button>
+            <button type="button" class="btn btn-secondary" id="clear-form">🔄 Clear Form</button>
+            <button type="button" class="btn btn-danger" id="delete-pattern" style="display: none;">🗑️ Delete Pattern</button>
+          </div>
+
+          <div id="form-message" class="form-message"></div>
+        </form>
+      </div>
+    </section>
+
+    <!-- TAB 3: Manage Sites -->
+    <section id="sites-tab" class="tab-content">
+      <div class="section-header">
+        <h2>Manage Sites</h2>
+        <p class="description">Enable or disable pattern recognition for specific sites</p>
+      </div>
+
+      <div class="sites-container">
+        <!-- GitHub -->
+        <div class="site-card">
+          <div class="site-header">
+            <div class="site-info">
+              <h3>GitHub</h3>
+              <span class="site-url">github.com</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" class="site-toggle" data-site="github" checked />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="site-stats">
+            <span class="badge">36 patterns</span>
+            <span class="badge" id="github-usage">0 uses</span>
+          </div>
+          <p class="site-description">Code hosting, PRs, issues, actions, and more</p>
+        </div>
+
+        <!-- Linear -->
+        <div class="site-card">
+          <div class="site-header">
+            <div class="site-info">
+              <h3>Linear</h3>
+              <span class="site-url">linear.app</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" class="site-toggle" data-site="linear" checked />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="site-stats">
+            <span class="badge">22 patterns</span>
+            <span class="badge" id="linear-usage">0 uses</span>
+          </div>
+          <p class="site-description">Issues, projects, cycles, roadmap, and insights</p>
+        </div>
+
+        <!-- Figma -->
+        <div class="site-card">
+          <div class="site-header">
+            <div class="site-info">
+              <h3>Figma</h3>
+              <span class="site-url">figma.com</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" class="site-toggle" data-site="figma" checked />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="site-stats">
+            <span class="badge">18 patterns</span>
+            <span class="badge" id="figma-usage">0 uses</span>
+          </div>
+          <p class="site-description">Design tools, layers, components, and collaboration</p>
+        </div>
+
+        <!-- New Relic -->
+        <div class="site-card">
+          <div class="site-header">
+            <div class="site-info">
+              <h3>New Relic</h3>
+              <span class="site-url">newrelic.com</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" class="site-toggle" data-site="newrelic" checked />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="site-stats">
+            <span class="badge">15 patterns</span>
+            <span class="badge" id="newrelic-usage">0 uses</span>
+          </div>
+          <p class="site-description">APM, dashboards, alerts, queries, and tracing</p>
+        </div>
+
+        <!-- Custom Sites (dynamically added) -->
+        <div id="custom-sites-container"></div>
+      </div>
+    </section>
+
+    <!-- TAB 4: Import/Export -->
+    <section id="import-export-tab" class="tab-content">
+      <div class="section-header">
+        <h2>Import/Export Patterns</h2>
+        <p class="description">Backup, share, or restore your custom patterns</p>
+      </div>
+
+      <div class="import-export-container">
+        <!-- Export Section -->
+        <div class="action-card">
+          <h3>📤 Export Patterns</h3>
+          <p>Download all your custom patterns as JSON</p>
+          <div class="export-options">
+            <label>
+              <input type="checkbox" id="export-github" checked />
+              GitHub patterns (36)
+            </label>
+            <label>
+              <input type="checkbox" id="export-linear" checked />
+              Linear patterns (22)
+            </label>
+            <label>
+              <input type="checkbox" id="export-figma" checked />
+              Figma patterns (18)
+            </label>
+            <label>
+              <input type="checkbox" id="export-newrelic" checked />
+              New Relic patterns (15)
+            </label>
+            <label>
+              <input type="checkbox" id="export-custom" checked />
+              Custom patterns (<span id="custom-count">0</span>)
+            </label>
+            <label>
+              <input type="checkbox" id="export-settings" checked />
+              Settings & Analytics
+            </label>
+          </div>
+          <button class="btn btn-primary" id="export-btn">📥 Download JSON</button>
+        </div>
+
+        <!-- Import Section -->
+        <div class="action-card">
+          <h3>📥 Import Patterns</h3>
+          <p>Upload a JSON file to restore patterns</p>
+          <div class="import-zone" id="import-zone">
+            <div class="import-content">
+              <span class="import-icon">📄</span>
+              <p>Drop JSON file here or click to browse</p>
+              <input type="file" id="import-file" accept=".json" style="display: none;" />
+            </div>
+          </div>
+          <div class="import-options">
+            <label>
+              <input type="radio" name="import-mode" value="merge" checked />
+              Merge with existing patterns
+            </label>
+            <label>
+              <input type="radio" name="import-mode" value="replace" />
+              Replace all patterns (destructive!)
+            </label>
+          </div>
+          <button class="btn btn-secondary" id="import-btn">📤 Choose File</button>
+          <div id="import-status" class="import-status"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: Analytics -->
+    <section id="analytics-tab" class="tab-content">
+      <div class="section-header">
+        <h2>Usage Analytics</h2>
+        <p class="description">See which patterns are being used most</p>
+      </div>
+
+      <div class="analytics-container">
+        <!-- Summary Stats -->
+        <div class="analytics-summary">
+          <div class="analytics-card">
+            <h4>Total Queries</h4>
+            <span class="analytics-value" id="total-queries">0</span>
+          </div>
+          <div class="analytics-card">
+            <h4>Successful Matches</h4>
+            <span class="analytics-value" id="successful-matches">0</span>
+          </div>
+          <div class="analytics-card">
+            <h4>Success Rate</h4>
+            <span class="analytics-value" id="success-rate">0%</span>
+          </div>
+          <div class="analytics-card">
+            <h4>Most Used Site</h4>
+            <span class="analytics-value" id="most-used-site">-</span>
+          </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-container">
+          <!-- Top Patterns -->
+          <div class="chart-card">
+            <h3>🏆 Top 10 Patterns</h3>
+            <div id="top-patterns-chart" class="chart">
+              <p class="no-data">No usage data yet. Start using ZoneGuide!</p>
+            </div>
+          </div>
+
+          <!-- Site Usage -->
+          <div class="chart-card">
+            <h3>🌐 Usage by Site</h3>
+            <div id="site-usage-chart" class="chart">
+              <p class="no-data">No usage data yet. Start using ZoneGuide!</p>
+            </div>
+          </div>
+
+          <!-- Recent Activity -->
+          <div class="chart-card full-width">
+            <h3>📅 Recent Activity</h3>
+            <div id="recent-activity" class="activity-list">
+              <p class="no-data">No recent activity</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Analytics Actions -->
+        <div class="analytics-actions">
+          <button class="btn btn-secondary" id="reset-analytics">🔄 Reset Analytics</button>
+          <button class="btn btn-secondary" id="export-analytics">📊 Export Data</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>ZoneGuide v1.0.0 | 91 patterns across 4 sites | Made with ❤️</p>
+  </footer>
+
+  <!-- Load Scripts -->
+  <script src="patterns.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>
