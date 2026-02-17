@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Navigator: Contextual AI",
-  "version": "2.1.0",
-  "description": "Browser-native AI assistant (Unified Brain Edition)",
+  "version": "2.2.0",
+  "description": "Browser-native AI assistant with WebMCP native tool support",
   "icons": {
     "16": "icon.png",
     "48": "icon.png",
@@ -58,6 +58,7 @@
         "zoneguide/matcher.js",
         "zoneguide/knowledge-connector.js",
         "zoneguide/hybrid-matcher.js",
+        "zoneguide/webmcp.js",
         "zoneguide/styles.css",
         "zoneguide/options.html",
         "zoneguide/options.css",

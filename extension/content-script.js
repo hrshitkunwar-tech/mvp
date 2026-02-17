@@ -45,12 +45,13 @@ ContentAgent.prototype.init = function () {
                 'zoneguide/patterns.js',
                 'zoneguide/matcher.js',
                 'zoneguide/knowledge-connector.js',
-                'zoneguide/hybrid-matcher.js'
+                'zoneguide/hybrid-matcher.js',
+                'zoneguide/webmcp.js'
             ];
 
             function injectNext(index) {
                 if (index >= scripts.length) {
-                    console.log('[Navigator] All ZoneGuide scripts loaded');
+                    console.log('[Navigator] All ZoneGuide scripts loaded (WebMCP included)');
                     return;
                 }
 
@@ -207,6 +208,61 @@ ContentAgent.prototype.init = function () {
                     response: response
                 }, '*');
             });
+        }
+    });
+
+    // WEBMCP BRIDGE: Relay WebMCP status from page context → background → sidepanel
+    window.addEventListener('message', function (event) {
+        if (event.source !== window) return;
+
+        // webmcp.js broadcasts this after probing navigator.modelContext
+        if (event.data && event.data.type === 'WEBMCP_STATUS_REPORT') {
+            chrome.runtime.sendMessage({
+                action:  'WEBMCP_STATUS',
+                payload: event.data.payload
+            });
+        }
+
+        // webmcp.js broadcasts this when a workflow export is requested
+        if (event.data && event.data.type === 'WEBMCP_EXPORT_RESULT') {
+            chrome.runtime.sendMessage({
+                action:     'WEBMCP_EXPORT_RESULT',
+                requestId:  event.data.requestId,
+                toolDef:    event.data.toolDef
+            });
+        }
+    });
+
+    // Handle WEBMCP_* messages from background (list tools, call tool)
+    chrome.runtime.onMessage.addListener(function (req, sender, sendResponse) {
+        if (req.action === 'WEBMCP_LIST_TOOLS') {
+            window.postMessage({ type: 'WEBMCP_LIST_TOOLS_REQUEST' }, '*');
+            var listHandler = function (event) {
+                if (event.source !== window) return;
+                if (event.data && event.data.type === 'WEBMCP_LIST_TOOLS_RESPONSE') {
+                    window.removeEventListener('message', listHandler);
+                    sendResponse({ tools: event.data.tools });
+                }
+            };
+            window.addEventListener('message', listHandler);
+            return true;
+        }
+
+        if (req.action === 'WEBMCP_CALL_TOOL') {
+            window.postMessage({
+                type:   'WEBMCP_CALL_TOOL_REQUEST',
+                name:   req.name,
+                params: req.params
+            }, '*');
+            var callHandler = function (event) {
+                if (event.source !== window) return;
+                if (event.data && event.data.type === 'WEBMCP_CALL_TOOL_RESPONSE') {
+                    window.removeEventListener('message', callHandler);
+                    sendResponse({ result: event.data.result, error: event.data.error });
+                }
+            };
+            window.addEventListener('message', callHandler);
+            return true;
         }
     });
 

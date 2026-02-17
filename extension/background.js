@@ -36,6 +36,17 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     var tid = sender.tab.id;
     updateMemoryContext(tid, request.payload);
     sendResponse({ status: 'ok' });
+  } else if (request.action === 'WEBMCP_STATUS' && sender.tab) {
+    // Store WebMCP detection result for this tab
+    var wid = sender.tab.id;
+    if (!tabContexts[wid]) tabContexts[wid] = { meta: {}, content: { headings: [], interaction: [], text: '', blocks: [] } };
+    tabContexts[wid].webmcp = request.payload;
+    console.log('[Navigator] WebMCP status for tab', wid, ':', request.payload.mode, '(' + request.payload.toolCount + ' tools)');
+    sendResponse({ status: 'ok' });
+  } else if (request.action === 'GET_WEBMCP_STATUS') {
+    var ctx = tabContexts[request.tabId];
+    sendResponse({ webmcp: ctx ? (ctx.webmcp || null) : null });
+    return true;
   } else if (request.action === 'GET_DEBUG_CONTEXT') {
     sendResponse({ context: tabContexts[request.tabId] });
     return true;
@@ -201,7 +212,18 @@ chrome.runtime.onConnect.addListener(function (port) {
 
 function handleAskLLM(port, query, tabId) {
   var context = tabContexts[tabId];
+  var webmcp  = context ? context.webmcp : null;
   console.log("Asking Unified Brain (Stream):", query);
+
+  // Build WebMCP context string for LLM
+  var webmcpContext = '';
+  if (webmcp && webmcp.supported && webmcp.toolCount > 0) {
+    webmcpContext = '\n\nNATIVE WEBMCP TOOLS ON THIS PAGE (' + webmcp.toolCount + '):\n';
+    (webmcp.tools || []).forEach(function (t, i) {
+      webmcpContext += (i + 1) + '. ' + t.name + ' – ' + (t.description || '') + '\n';
+    });
+    webmcpContext += 'When a user query matches a native tool, prefer calling it directly (faster and cheaper) over visual guidance.';
+  }
 
   // STEP 1: Tool Detection
   fetch('http://127.0.0.1:8000/detect-tool', {
@@ -228,7 +250,7 @@ function handleAskLLM(port, query, tabId) {
           query: "SYSTEM: Act as a concise Navigator AI. Respond ONLY with a clean, numbered step-by-step guide. No preamble. No conversational filler. Use 'ACTION:highlight_zone:zone:selector' for navigation.\n\nUSER QUERY: " + query,
           tool_name: toolName,
           url: context ? context.meta.url : "Browser Tab",
-          context_text: context ? context.content.text.substring(0, 15000) : "No text."
+          context_text: (context ? context.content.text.substring(0, 15000) : "No text.") + webmcpContext
         })
       });
     })

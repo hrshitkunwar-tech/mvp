@@ -18,6 +18,7 @@ var lastActions = []; // Store actions from the current response
 var isRecording = false;
 var currentProcedure = null;
 var currentStepIndex = 0;
+var webmcpState = null; // Current tab's WebMCP info
 
 function updateContextIndicator(tab) {
     if (!tab || !contextBadge) return;
@@ -44,6 +45,70 @@ function updateContextIndicator(tab) {
     contextBadge.classList.add('active');
 }
 
+// ── WebMCP panel ───────────────────────────────────────────────────────────
+
+function updateWebMCPPanel(info) {
+    var panel  = document.getElementById('webmcp-panel');
+    var badge  = document.getElementById('webmcp-badge');
+    var list   = document.getElementById('webmcp-tools-list');
+    var toggle = document.getElementById('webmcp-toggle');
+    if (!panel || !badge || !list) return;
+
+    webmcpState = info;
+
+    if (!info || !info.supported) {
+        // Visual mode — show a subtle indicator but keep panel minimal
+        panel.classList.remove('hidden');
+        badge.textContent = '⚪ Visual Mode';
+        badge.className = 'webmcp-badge webmcp-visual';
+        list.classList.add('hidden');
+        if (toggle) toggle.classList.add('hidden');
+        return;
+    }
+
+    panel.classList.remove('hidden');
+
+    if (info.toolCount > 0) {
+        badge.textContent = '🟢 Native Tools (' + info.toolCount + ')';
+        badge.className = 'webmcp-badge webmcp-native';
+        if (toggle) toggle.classList.remove('hidden');
+
+        // Build tool cards
+        list.innerHTML = '';
+        (info.tools || []).forEach(function (tool) {
+            var card = document.createElement('div');
+            card.className = 'webmcp-tool-card';
+            card.innerHTML =
+                '<span class="webmcp-tool-name">' + (tool.name || '') + '</span>' +
+                '<span class="webmcp-tool-desc">' + (tool.description || '') + '</span>';
+            list.appendChild(card);
+        });
+
+        // Toggle list visibility
+        if (toggle) {
+            toggle.onclick = function () {
+                var hidden = list.classList.toggle('hidden');
+                toggle.textContent = hidden ? '▾' : '▴';
+            };
+        }
+    } else {
+        // WebMCP present but no tools yet
+        badge.textContent = '🟡 WebMCP Ready';
+        badge.className = 'webmcp-badge webmcp-hybrid';
+        list.classList.add('hidden');
+        if (toggle) toggle.classList.add('hidden');
+    }
+}
+
+function requestWebMCPStatus(tabId) {
+    chrome.runtime.sendMessage({ action: 'GET_WEBMCP_STATUS', tabId: tabId }, function (response) {
+        if (chrome.runtime.lastError) return;
+        updateWebMCPPanel(response && response.webmcp ? response.webmcp : null);
+    });
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+
 function init() {
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
         if (tabs && tabs.length > 0) {
@@ -55,12 +120,14 @@ function init() {
 
             // Trigger scan on startup
             requestImmediateScan();
+            requestWebMCPStatus(currentTabId);
 
             // Update indicator when tab changes
             chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
                 if (tabId === currentTabId && (changeInfo.title || changeInfo.status === 'complete')) {
                     updateContextIndicator(tab);
                     requestImmediateScan();
+                    if (changeInfo.status === 'complete') requestWebMCPStatus(tabId);
                 }
             });
 
@@ -70,6 +137,7 @@ function init() {
                     currentTabId = tab.id;
                     updateContextIndicator(tab);
                     requestImmediateScan();
+                    requestWebMCPStatus(tab.id);
 
                     var dbgTab = document.getElementById('dbg-tab');
                     if (dbgTab) dbgTab.textContent = currentTabId;
