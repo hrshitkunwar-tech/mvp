@@ -119,15 +119,18 @@ export const getStep = query({
         previous_step_id: stepIndex > 0 ? procedure.steps[stepIndex - 1].step_id : undefined,
         next_step_id:
           stepIndex < procedure.steps.length - 1
-      };
-    },
+            ? procedure.steps[stepIndex + 1].step_id
+            : undefined,
+      },
+    };
+  },
 });
 
 export const listProducts = query({
   args: {},
   handler: async (ctx) => {
     const all = await ctx.db.query("procedures").collect();
-    const products = Array.from(new Set(all.map(p => p.product)));
+    const products = Array.from(new Set(all.map((p: any) => p.product)));
     return products;
   },
 });

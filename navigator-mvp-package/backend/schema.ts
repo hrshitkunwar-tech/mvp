@@ -193,4 +193,20 @@ export default defineSchema({
     ui_state_id: v.id('ui_states'),
     timestamp: v.number(),
   }).index('by_session', ['session_id', 'timestamp']),
+
+  // Scraped Content for RAG
+  scrapedata: defineTable({
+    tool_name: v.string(),     // e.g. "Linear", "Notion"
+    url: v.string(),           // Source URL
+    title: v.optional(v.string()), // Page title
+    content: v.string(),       // The markdown/text content
+    summary: v.optional(v.string()), // Brief summary
+    crawled_at: v.number(),
+    metadata: v.optional(v.any()), // Extra metadata from crawler
+  })
+    .index("by_tool", ["tool_name"])
+    .searchIndex("search_content", {
+      searchField: "content",
+      filterFields: ["tool_name"]
+    }),
 });
