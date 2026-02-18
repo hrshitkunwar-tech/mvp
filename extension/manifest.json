@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Navigator: Contextual AI",
-  "version": "2.0.4",
+  "version": "2.1.0",
   "description": "Browser-native AI assistant (Unified Brain Edition)",
   "icons": {
     "16": "icon.png",
@@ -33,12 +33,25 @@
         "<all_urls>"
       ],
       "js": [
-        "content-script.js"
+        "content-script.js",
+        "zoneguide/zones.js",
+        "zoneguide/index.js"
+      ],
+      "css": [
+        "zoneguide/styles.css"
       ],
       "run_at": "document_idle",
       "all_frames": true
     }
   ],
+  "commands": {
+    "toggle-zoneguide-recording": {
+      "suggested_key": {
+        "default": "Alt+Shift+R"
+      },
+      "description": "Start/stop ZoneGuide recording"
+    }
+  },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'none'"
   }

@@ -349,13 +349,16 @@ User question: {request.query}
 
 Provide a helpful answer:"""
     else:
-        # General path: Direct Ollama (no RAG)
-        print(f"[GENERAL PATH] Responding directly from Ollama")
+        # General path: Direct Ollama (no RAG) but WITH page context
+        print(f"[GENERAL PATH] Responding directly from Ollama with page context")
         prompt = f"""You are Navigator, a helpful AI assistant.
+
+Current page context:
+{request.context_text[:2000]}
 
 User question: {request.query}
 
-Provide a clear, concise answer:"""
+Provide a clear, helpful answer based on the page context when relevant:"""
 
     # Step 4: Stream response from Ollama
     print(f"Streaming response from Ollama ({OLLAMA_MODEL})...")
