@@ -49,26 +49,49 @@ ContentAgent.prototype.init = function () {
                 'zoneguide/webmcp.js'
             ];
 
+            var scriptsLoaded = 0;
+
             function injectNext(index) {
                 if (index >= scripts.length) {
-                    console.log('[Navigator] All ZoneGuide scripts loaded (WebMCP included)');
+                    console.log('[Navigator] All ZoneGuide scripts injected, waiting for init...');
+
+                    // Wait for ZoneGuide to signal it's fully initialized
+                    var initTimeout = setTimeout(function() {
+                        console.warn('[Navigator] ZoneGuide init timeout, assuming ready');
+                        window.__ZONEGUIDE_INJECTED__ = true;
+                    }, 2000);
+
+                    var initHandler = function(event) {
+                        if (event.source !== window) return;
+                        if (event.data && event.data.type === 'ZONEGUIDE_INITIALIZED') {
+                            clearTimeout(initTimeout);
+                            window.removeEventListener('message', initHandler);
+                            window.__ZONEGUIDE_INJECTED__ = true;
+                            console.log('[Navigator] ✅ ZoneGuide fully initialized and ready');
+                        }
+                    };
+                    window.addEventListener('message', initHandler);
+
                     return;
                 }
 
                 var script = document.createElement('script');
                 script.src = chrome.runtime.getURL(scripts[index]);
                 script.onload = function() {
-                    console.log('[Navigator] ' + scripts[index] + ' injected');
+                    scriptsLoaded++;
+                    console.log('[Navigator] [' + scriptsLoaded + '/' + scripts.length + '] ' + scripts[index] + ' loaded');
                     injectNext(index + 1);
                 };
                 script.onerror = function(e) {
                     console.error('[Navigator] Failed to load ' + scripts[index] + ':', e);
+                    // Continue anyway
+                    scriptsLoaded++;
+                    injectNext(index + 1);
                 };
                 (document.head || document.documentElement).appendChild(script);
             }
 
             injectNext(0);
-            window.__ZONEGUIDE_INJECTED__ = true;
         } catch (e) {
             console.error('[Navigator] ZoneGuide injection error:', e);
         }
@@ -101,46 +124,134 @@ ContentAgent.prototype.init = function () {
     });
 
     // NEW: Relay ZONEGUIDE messages from background to page context
+    // FIX: Added retry logic, increased timeout, and direct CSS fallback
     chrome.runtime.onMessage.addListener(function (req, sender, sendResponse) {
         if (req.type && req.type.startsWith('ZONEGUIDE_')) {
-            // First check if zoneguide is ready by sending PING
+            var retries = 0;
+            var maxRetries = 3;
             var pingTimeout = null;
+            var readyHandler = null;
 
-            var readyHandler = function (event) {
-                if (event.source !== window) return;
+            // DIRECT CSS FALLBACK: If ZoneGuide fails, do basic highlighting anyway
+            function directFallbackHighlight() {
+                if (req.type !== 'ZONEGUIDE_SHOW_ZONE' || !req.payload || !req.payload.selector) return;
 
-                // Received PONG - zoneguide is ready
-                if (event.data && event.data.type === 'ZONEGUIDE_PONG') {
-                    clearTimeout(pingTimeout);
+                console.log('[Navigator] 🎨 Using direct CSS fallback for:', req.payload.selector);
+
+                try {
+                    var selector = req.payload.selector;
+                    var element = document.querySelector(selector);
+
+                    if (!element) {
+                        // Try fallback selectors
+                        if (selector.indexOf('=') > 0) {
+                            var match = selector.match(/=["']?([^"']+)["']?/);
+                            if (match && match[1]) {
+                                element = document.querySelector('#' + match[1]) ||
+                                         document.querySelector('.' + match[1]);
+                            }
+                        }
+                    }
+
+                    if (element) {
+                        // Scroll into view
+                        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                        // Add highlight styles
+                        element.style.outline = '3px solid #ff0080';
+                        element.style.boxShadow = '0 0 20px rgba(255, 0, 128, 0.6), inset 0 0 20px rgba(255, 0, 128, 0.3)';
+                        element.style.transition = 'all 0.3s ease';
+                        element.style.position = 'relative';
+                        element.style.zIndex = '9998';
+
+                        // Create pulse animation
+                        var pulseCount = 0;
+                        var pulseInterval = setInterval(function() {
+                            pulseCount++;
+                            if (pulseCount > 3) {
+                                clearInterval(pulseInterval);
+                            } else {
+                                element.style.boxShadow = pulseCount % 2 === 0
+                                    ? '0 0 30px rgba(255, 0, 128, 0.8), inset 0 0 30px rgba(255, 0, 128, 0.5)'
+                                    : '0 0 20px rgba(255, 0, 128, 0.6), inset 0 0 20px rgba(255, 0, 128, 0.3)';
+                            }
+                        }, 300);
+
+                        // Remove after duration
+                        var duration = req.payload.duration || 2500;
+                        setTimeout(function() {
+                            clearInterval(pulseInterval);
+                            element.style.outline = '';
+                            element.style.boxShadow = '';
+                            element.style.zIndex = '';
+                        }, duration);
+
+                        sendResponse({ success: true, fallback: true, found_element: true });
+                        return true;
+                    }
+                } catch (e) {
+                    console.error('[Navigator] Fallback highlight failed:', e);
+                }
+
+                sendResponse({ error: 'Element not found', fallback: true });
+                return false;
+            }
+
+            function tryPing() {
+                readyHandler = function (event) {
+                    if (event.source !== window) return;
+
+                    // Received PONG - zoneguide is ready
+                    if (event.data && event.data.type === 'ZONEGUIDE_PONG') {
+                        clearTimeout(pingTimeout);
+                        window.removeEventListener('message', readyHandler);
+
+                        console.log('[Navigator] ✓ ZoneGuide PONG received, forwarding message');
+
+                        // Now forward the actual message
+                        window.postMessage(req, '*');
+
+                        // Listen for response
+                        var responseHandler = function (event) {
+                            if (event.source !== window) return;
+                            if (event.data && event.data.type === 'ZONEGUIDE_RESPONSE') {
+                                window.removeEventListener('message', responseHandler);
+                                sendResponse(event.data.payload);
+                            }
+                        };
+                        window.addEventListener('message', responseHandler);
+
+                        // Timeout for response
+                        setTimeout(function() {
+                            window.removeEventListener('message', responseHandler);
+                        }, 3000);
+                    }
+                };
+
+                window.addEventListener('message', readyHandler);
+
+                // Send PING to check readiness
+                console.log('[Navigator] 📡 Sending PING (attempt ' + (retries + 1) + '/' + (maxRetries + 1) + ')');
+                window.postMessage({ type: 'ZONEGUIDE_PING' }, '*');
+
+                // Exponential backoff timeout
+                var timeout = 1000 + (retries * 500);
+                pingTimeout = setTimeout(function () {
                     window.removeEventListener('message', readyHandler);
 
-                    // Now forward the actual message
-                    window.postMessage(req, '*');
+                    if (retries < maxRetries) {
+                        retries++;
+                        console.warn('[Navigator] ⏱️ PING timeout, retry', retries + '/' + maxRetries);
+                        tryPing();
+                    } else {
+                        console.error('[Navigator] ❌ ZoneGuide not ready after', maxRetries + 1, 'attempts. Using fallback.');
+                        // Use direct CSS fallback
+                        directFallbackHighlight();
+                    }
+                }, timeout);
+            }
 
-                    // Listen for response
-                    var responseHandler = function (event) {
-                        if (event.source !== window) return;
-                        if (event.data && event.data.type === 'ZONEGUIDE_RESPONSE') {
-                            window.removeEventListener('message', responseHandler);
-                            sendResponse(event.data.payload);
-                        }
-                    };
-                    window.addEventListener('message', responseHandler);
-                }
-            };
-
-            window.addEventListener('message', readyHandler);
-
-            // Send PING to check readiness
-            window.postMessage({ type: 'ZONEGUIDE_PING' }, '*');
-
-            // Timeout after 1 second if no PONG received
-            pingTimeout = setTimeout(function () {
-                window.removeEventListener('message', readyHandler);
-                console.error('[Navigator] ZoneGuide not ready - timeout');
-                sendResponse({ error: 'ZoneGuide not loaded' });
-            }, 1000);
-
+            tryPing();
             return true; // Keep channel open for async response
         }
 

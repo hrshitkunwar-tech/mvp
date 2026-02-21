@@ -674,3 +674,35 @@ input:checked+.slider:before {
         opacity: 1;
     }
 }
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Toast notifications */
+.toast {
+    animation: slideIn 0.3s ease;
+}
+
+.toast-error {
+    background: #f44336 !important;
+}
+
+.toast-warning {
+    background: #fb8c00 !important;
+}
+
+.toast-success {
+    background: #4caf50 !important;
+}
+
+.toast-info {
+    background: #2196f3 !important;
+}

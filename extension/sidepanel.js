@@ -281,6 +281,18 @@ function connect() {
                     action: 'EXECUTE_ACTION',
                     actionData: msg.data,
                     tabId: currentTabId
+                }, function(response) {
+                    // Check if execution failed
+                    if (chrome.runtime.lastError) {
+                        console.error("[Sidepanel] Action execution error:", chrome.runtime.lastError.message);
+                        showToast('⚠️ Visual guidance unavailable', 'error');
+                    } else if (response && response.fallback) {
+                        // Using fallback mode
+                        showToast('🎨 Using simplified visual mode', 'warning');
+                    } else if (response && response.error) {
+                        console.error("[Sidepanel] Action failed:", response.error);
+                        showToast('⚠️ Could not highlight element', 'error');
+                    }
                 });
             } else if (msg.type === 'start_workflow') {
                 startPlayback(msg.procedureId);
@@ -385,6 +397,32 @@ function appendToken(text) {
         currentAiMessageDiv.innerHTML = html || "...";
         chatContainer.scrollTop = chatContainer.scrollHeight;
     }
+}
+
+/**
+ * Show toast notification
+ * @param {string} message - Message to display
+ * @param {string} type - 'info', 'warning', 'error', 'success'
+ */
+function showToast(message, type) {
+    type = type || 'info';
+    var toast = document.createElement('div');
+    toast.className = 'toast toast-' + type;
+    toast.textContent = message;
+    toast.style.cssText = 'position:fixed;top:10px;right:10px;background:' +
+        (type === 'error' ? '#f44' : type === 'warning' ? '#fb8c00' : type === 'success' ? '#4caf50' : '#2196f3') +
+        ';color:#fff;padding:12px 20px;border-radius:6px;z-index:99999;' +
+        'box-shadow:0 4px 12px rgba(0,0,0,0.3);font-size:14px;font-weight:500;' +
+        'animation:slideIn 0.3s ease;';
+
+    document.body.appendChild(toast);
+
+    setTimeout(function() {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(20px)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(function() { toast.remove(); }, 300);
+    }, 3000);
 }
 
 function finishStream() {

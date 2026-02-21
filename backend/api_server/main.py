@@ -100,6 +100,17 @@ LOCAL_KB = {
         ],
     ),
 
+    "open issue": (
+        """**How to view Issues on GitHub**
+
+1. Go to your repository.
+2. Click the **Issues** tab at the top.
+3. Browse open issues or use filters to search.""",
+        [
+            "ACTION:highlight_zone:arc-tl:.UnderlineNav-item[data-tab-item='issues-tab']:3000",
+        ],
+    ),
+
     "merge pr": (
         """**How to merge a Pull Request on GitHub**
 
@@ -200,7 +211,31 @@ git push -u origin my-feature
 3. Choose **New issue**.
 4. Fill in the **title**, set **status**, **priority**, and **assignee**.
 5. Click **Save issue** (or press **Cmd/Ctrl + Enter**).""",
-        [],
+        [
+            "ACTION:highlight_zone:arc-tl:button[aria-label='New issue']:2500",
+        ],
+    ),
+
+    "open board": (
+        """**How to view the board in Linear**
+
+1. Click on your team name in the left sidebar.
+2. Select **Board** view from the top navigation.
+3. You'll see all issues organized by status columns.""",
+        [
+            "ACTION:highlight_zone:arc-tl:button[aria-label='Board'],a[href*='/board']:2500",
+        ],
+    ),
+
+    "view backlog": (
+        """**How to view the backlog in Linear**
+
+1. Click on your team name in the left sidebar.
+2. Select **Backlog** from the views.
+3. You'll see all unscheduled issues.""",
+        [
+            "ACTION:highlight_zone:arc-tl:button[aria-label='Backlog'],a[href*='/backlog']:2500",
+        ],
     ),
 
     # ── Figma ─────────────────────────────────────────────────────────────────
@@ -211,6 +246,64 @@ git push -u origin my-feature
 2. Click and drag on the canvas to draw your frame.
 3. Or pick a preset size from the right panel (iPhone, Desktop, etc.).""",
         [],
+    ),
+
+    "open file": (
+        """**How to open a file in Figma**
+
+1. Go to the **Files** page (click Figma logo or press **Cmd/Ctrl + O**).
+2. Browse your recent files or search by name.
+3. Click on any file thumbnail to open it.""",
+        [
+            "ACTION:highlight_zone:arc-tl:a[href*='/files'],button[aria-label='Files']:2500",
+        ],
+    ),
+
+    "view comment": (
+        """**How to view comments in Figma**
+
+1. Click the **Comment** icon in the top toolbar (speech bubble).
+2. Or press **C** to toggle comment mode.
+3. Comments will appear on the canvas where they were left.""",
+        [
+            "ACTION:highlight_zone:arc-tr:button[aria-label*='Comment'],button[data-testid='comments-button']:2500",
+        ],
+    ),
+
+    "share file": (
+        """**How to share a file in Figma**
+
+1. Click the **Share** button in the top-right corner.
+2. Enter email addresses or copy the link.
+3. Set permissions (can view / can edit).
+4. Click **Send** or **Copy link**.""",
+        [
+            "ACTION:highlight_zone:arc-tr:button[aria-label='Share']:2500",
+        ],
+    ),
+
+    # ── New Relic ─────────────────────────────────────────────────────────────
+    "view metric": (
+        """**How to view metrics in New Relic**
+
+1. Navigate to **All Entities** in the left sidebar.
+2. Select your app or service.
+3. The main dashboard shows key metrics (throughput, response time, errors).
+4. Click on any chart to drill down.""",
+        [
+            "ACTION:highlight_zone:arc-tl:nav a[href*='/all-entities'],button[aria-label='All entities']:2500",
+        ],
+    ),
+
+    "open dashboard": (
+        """**How to open a dashboard in New Relic**
+
+1. Click **Dashboards** in the left sidebar.
+2. Browse or search for your dashboard by name.
+3. Click to open and view your custom widgets.""",
+        [
+            "ACTION:highlight_zone:arc-tl:nav a[href*='/dashboards'],button[aria-label='Dashboards']:2500",
+        ],
     ),
 
     # ── Generic Git ───────────────────────────────────────────────────────────
@@ -240,10 +333,55 @@ def find_local_answer(query: str):
     # Strip the 'SYSTEM: ... USER QUERY:' wrapper that background.js prepends
     if "user query:" in q:
         q = q.split("user query:")[-1].strip()
-    # Try longest key match first
+
+    # Normalize variations (PR → pull request, etc.)
+    variations = {
+        "pull request": "pr",
+        "pullrequest": "pr",
+        "pr's": "pr",
+        "prs": "pr",
+        "pull requests": "pr",
+        "view pr": "open pr",
+        "see pr": "open pr",
+        "show pr": "open pr",
+        "view pull request": "open pr",
+        "open pull request": "open pr",
+        "new pr": "create pr",
+        "make pr": "create pr",
+        "create pull request": "create pr",
+        "new pull request": "create pr",
+        "view issue": "open issue",
+        "see issue": "open issue",
+        "show issue": "open issue",
+        "open issue": "open issue",
+        "view board": "open board",
+        "see board": "open board",
+        "open backlog": "view backlog",
+        "show backlog": "view backlog",
+        "add task": "create issue linear",
+        "new task": "create issue linear",
+        "view comments": "view comment",
+        "view comment": "view comment",
+        "show comments": "view comment",
+        "share": "share file",
+    }
+
+    # Apply variations
+    normalized_q = q
+    for variation, canonical in variations.items():
+        if variation in normalized_q:
+            normalized_q = normalized_q.replace(variation, canonical)
+
+    # Try longest key match first on normalized query
+    for key in sorted(LOCAL_KB.keys(), key=len, reverse=True):
+        if key in normalized_q:
+            return LOCAL_KB[key]
+
+    # Fallback: try original query
     for key in sorted(LOCAL_KB.keys(), key=len, reverse=True):
         if key in q:
             return LOCAL_KB[key]
+
     return None
 
 

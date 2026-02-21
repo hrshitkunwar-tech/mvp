@@ -65,6 +65,9 @@
     });
 
     console.log('[ZoneGuide] Module initialized v' + state.version);
+
+    // Signal to content script that we're fully ready
+    window.postMessage({ type: 'ZONEGUIDE_INITIALIZED' }, '*');
   }
 
   /**
