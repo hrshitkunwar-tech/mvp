@@ -202,6 +202,192 @@ git push -u origin my-feature
         [],
     ),
 
+    # ── GitHub: Clone / Watch ─────────────────────────────────────────────────
+    "clone repo": (
+        """**How to clone a repository**
+
+1. Click the green **Code** button (top-right of the file list).
+2. Copy the HTTPS or SSH URL.
+3. In your terminal:
+```bash
+git clone <url>
+cd <repo-name>
+```""",
+        [
+            "ACTION:highlight_zone:arc-tr:button[data-hotkey='c']:2500",
+        ],
+    ),
+
+    "watch repo": (
+        """**How to watch a repository**
+
+1. Click the **Watch** button (top-right, near Star).
+2. Choose notification level:
+   - **All Activity** → get notified of everything
+   - **Releases only** → only new releases
+   - **Ignore** → no notifications""",
+        [
+            "ACTION:highlight_zone:arc-tr:button[aria-label*='watch']:2500",
+        ],
+    ),
+
+    # ── GitHub: Actions / Workflows ───────────────────────────────────────────
+    "view actions": (
+        """**How to view GitHub Actions**
+
+1. Click the **Actions** tab (top navigation).
+2. You'll see all workflow runs.
+3. Click any run to see logs and details.""",
+        [
+            "ACTION:highlight_zone:arc-tl:.UnderlineNav-item[data-tab-item='actions-tab']:3000",
+        ],
+    ),
+
+    "view workflow": (
+        """**How to view workflow runs**
+
+1. Go to **Actions** tab.
+2. Filter by workflow name in the left sidebar.
+3. Click a run to see step-by-step logs.""",
+        [
+            "ACTION:highlight_zone:arc-tl:.UnderlineNav-item[data-tab-item='actions-tab']:3000",
+        ],
+    ),
+
+    # ── GitHub: Commits / History ─────────────────────────────────────────────
+    "view commits": (
+        """**How to view commit history**
+
+1. Click the **Commits** link (shows count, e.g. "1,234 commits").
+2. You'll see the full history.
+3. Click any commit to view the diff.""",
+        [
+            "ACTION:highlight_zone:arc-tl:a[href*='/commits']:2500",
+        ],
+    ),
+
+    "view branches": (
+        """**How to view all branches**
+
+1. Click the branch selector dropdown.
+2. Click **View all branches** at the bottom.
+3. Or navigate to the **Branches** page via repo settings.""",
+        [
+            "ACTION:highlight_zone:arc-tl:button[aria-label*='branch']:2500",
+        ],
+    ),
+
+    "view tags": (
+        """**How to view tags**
+
+1. Click the branch selector.
+2. Switch to the **Tags** tab.
+3. Or go to **Releases** page to see tagged releases.""",
+        [],
+    ),
+
+    # ── GitHub: Releases ──────────────────────────────────────────────────────
+    "view releases": (
+        """**How to view releases**
+
+1. On the right sidebar, click **Releases** (shows count).
+2. You'll see all published releases.
+3. Each release shows notes, assets, and the associated tag.""",
+        [
+            "ACTION:highlight_zone:arc-r:a[href*='/releases']:2500",
+        ],
+    ),
+
+    "create release": (
+        """**How to create a release**
+
+1. Go to **Releases** page.
+2. Click **Draft a new release**.
+3. Choose an existing tag or create a new one.
+4. Fill in title, description, and attach binaries if needed.
+5. Click **Publish release**.""",
+        [
+            "ACTION:highlight_zone:arc-r:a[href*='/releases']:2500",
+        ],
+    ),
+
+    # ── GitHub: Settings / Admin ──────────────────────────────────────────────
+    "view settings": (
+        """**How to view repository settings**
+
+1. Click **Settings** tab (top navigation, requires write access).
+2. You'll see options for:
+   - General (repo name, visibility)
+   - Branches (protection rules)
+   - Webhooks & Actions
+   - Collaborators & teams""",
+        [
+            "ACTION:highlight_zone:arc-tl:.UnderlineNav-item[data-tab-item='settings-tab']:3000",
+        ],
+    ),
+
+    "view security": (
+        """**How to view security settings**
+
+1. Click **Security** tab.
+2. You'll see:
+   - Dependabot alerts
+   - Code scanning (if enabled)
+   - Secret scanning""",
+        [
+            "ACTION:highlight_zone:arc-tl:.UnderlineNav-item[data-tab-item='security-tab']:3000",
+        ],
+    ),
+
+    "view insights": (
+        """**How to view repository insights**
+
+1. Click **Insights** tab.
+2. You'll see:
+   - Contributor stats
+   - Traffic (views, clones)
+   - Pulse (recent activity)""",
+        [
+            "ACTION:highlight_zone:arc-tl:.UnderlineNav-item[data-tab-item='insights-tab']:3000",
+        ],
+    ),
+
+    # ── GitHub: Discussions ───────────────────────────────────────────────────
+    "view discussions": (
+        """**How to view discussions**
+
+1. If enabled, click **Discussions** tab.
+2. You'll see community Q&A threads.
+3. Click any discussion to read or reply.""",
+        [
+            "ACTION:highlight_zone:arc-tl:.UnderlineNav-item[data-tab-item='discussions-tab']:3000",
+        ],
+    ),
+
+    # ── GitHub: Wiki ──────────────────────────────────────────────────────────
+    "view wiki": (
+        """**How to view the wiki**
+
+1. Click **Wiki** tab (if enabled).
+2. You'll see documentation pages.
+3. Click **Edit** to modify (requires write access).""",
+        [
+            "ACTION:highlight_zone:arc-tl:.UnderlineNav-item[data-tab-item='wiki-tab']:3000",
+        ],
+    ),
+
+    # ── GitHub: Projects ──────────────────────────────────────────────────────
+    "view projects": (
+        """**How to view projects**
+
+1. Click **Projects** tab.
+2. You'll see Kanban-style project boards.
+3. Click any project to open it.""",
+        [
+            "ACTION:highlight_zone:arc-tl:.UnderlineNav-item[data-tab-item='projects-tab']:3000",
+        ],
+    ),
+
     # ── Linear ────────────────────────────────────────────────────────────────
     "create issue linear": (
         """**How to create an Issue in Linear**
@@ -236,6 +422,86 @@ git push -u origin my-feature
         [
             "ACTION:highlight_zone:arc-tl:button[aria-label='Backlog'],a[href*='/backlog']:2500",
         ],
+    ),
+
+    "view roadmap": (
+        """**How to view the roadmap in Linear**
+
+1. Click **Roadmap** in the left sidebar.
+2. You'll see projects organized by timeline.
+3. Drag projects to adjust dates.""",
+        [
+            "ACTION:highlight_zone:arc-tl:a[href*='/roadmap']:2500",
+        ],
+    ),
+
+    "view cycles": (
+        """**How to view cycles in Linear**
+
+1. Click **Cycles** in the top navigation or sidebar.
+2. You'll see all active and upcoming cycles.
+3. Click a cycle to view issues in that sprint.""",
+        [
+            "ACTION:highlight_zone:arc-tl:a[href*='/cycle']:2500",
+        ],
+    ),
+
+    "view linear projects": (
+        """**How to view projects in Linear**
+
+1. Click **Projects** in the left sidebar.
+2. You'll see all active projects.
+3. Click any project to see associated issues.""",
+        [
+            "ACTION:highlight_zone:arc-tl:a[href*='/project']:2500",
+        ],
+    ),
+
+    "view team settings": (
+        """**How to view team settings in Linear**
+
+1. Click the team dropdown (top-left).
+2. Select **Team settings**.
+3. You'll see options for workflows, labels, and templates.""",
+        [],
+    ),
+
+    "add label linear": (
+        """**How to add a label in Linear**
+
+1. Open an issue.
+2. Click **Add label** in the right panel.
+3. Choose from existing labels or create a new one.""",
+        [],
+    ),
+
+    "view my issues": (
+        """**How to view your assigned issues**
+
+1. Click **My Issues** in the left sidebar.
+2. You'll see all issues assigned to you.
+3. Filter by status or priority.""",
+        [
+            "ACTION:highlight_zone:arc-tl:a[href*='/my-issues']:2500",
+        ],
+    ),
+
+    "search issues linear": (
+        """**How to search issues in Linear**
+
+1. Press **Cmd/Ctrl + K** or click the search bar.
+2. Type your query (issue title, description, or ID).
+3. Use filters like `status:in progress` or `assignee:me`.""",
+        [],
+    ),
+
+    "view archive linear": (
+        """**How to view archived issues**
+
+1. Go to **All Issues** or **Board** view.
+2. Open filters (top-right).
+3. Select **Include archived** or **Archived only**.""",
+        [],
     ),
 
     # ── Figma ─────────────────────────────────────────────────────────────────
@@ -282,6 +548,47 @@ git push -u origin my-feature
         ],
     ),
 
+    "create component": (
+        """**How to create a component in Figma**
+
+1. Select the frame or group you want to turn into a component.
+2. Press **Opt/Alt + Cmd/Ctrl + K**, or
+3. Right-click → **Create component**.
+4. The element will get a purple outline (component indicator).""",
+        [],
+    ),
+
+    "view layers": (
+        """**How to view layers panel in Figma**
+
+1. The **Layers** panel is on the left by default.
+2. If hidden, go to **View** → **Show Layers** (or press **Opt/Alt + 1**).
+3. You'll see the full hierarchy of frames, groups, and elements.""",
+        [],
+    ),
+
+    "export assets": (
+        """**How to export assets from Figma**
+
+1. Select the element(s) you want to export.
+2. In the right panel, scroll to **Export** section.
+3. Click **+** to add an export format (PNG, SVG, JPG, PDF).
+4. Click **Export [name]** to download.""",
+        [],
+    ),
+
+    "view prototype": (
+        """**How to view prototype in Figma**
+
+1. Click the **Prototype** tab in the right panel (or press Shift + E).
+2. Connect frames with arrows to define flows.
+3. Click the **Play** button (top-right) to preview the prototype.
+4. Or press **Cmd/Ctrl + Enter**.""",
+        [
+            "ACTION:highlight_zone:arc-tr:button[aria-label*='Present']:2500",
+        ],
+    ),
+
     # ── New Relic ─────────────────────────────────────────────────────────────
     "view metric": (
         """**How to view metrics in New Relic**
@@ -304,6 +611,39 @@ git push -u origin my-feature
         [
             "ACTION:highlight_zone:arc-tl:nav a[href*='/dashboards'],button[aria-label='Dashboards']:2500",
         ],
+    ),
+
+    "view alerts": (
+        """**How to view alerts in New Relic**
+
+1. Click **Alerts** in the left sidebar.
+2. You'll see all active incidents and alert policies.
+3. Click any alert to see details and history.""",
+        [
+            "ACTION:highlight_zone:arc-tl:nav a[href*='/alerts'],button[aria-label='Alerts']:2500",
+        ],
+    ),
+
+    "view logs": (
+        """**How to view logs in New Relic**
+
+1. Click **Logs** in the left sidebar.
+2. You'll see aggregated logs from your services.
+3. Use the query bar to filter (e.g., `level:error`).
+4. Click any log entry to expand details.""",
+        [
+            "ACTION:highlight_zone:arc-tl:nav a[href*='/logs'],button[aria-label='Logs']:2500",
+        ],
+    ),
+
+    "view traces": (
+        """**How to view distributed traces**
+
+1. Navigate to your service in **All Entities**.
+2. Click **Distributed tracing** in the left menu.
+3. You'll see trace timelines showing cross-service requests.
+4. Click any trace to see the full waterfall.""",
+        [],
     ),
 
     # ── Generic Git ───────────────────────────────────────────────────────────
@@ -336,6 +676,7 @@ def find_local_answer(query: str):
 
     # Normalize variations (PR → pull request, etc.)
     variations = {
+        # GitHub PRs
         "pull request": "pr",
         "pullrequest": "pr",
         "pr's": "pr",
@@ -350,20 +691,100 @@ def find_local_answer(query: str):
         "make pr": "create pr",
         "create pull request": "create pr",
         "new pull request": "create pr",
+
+        # GitHub Issues
         "view issue": "open issue",
         "see issue": "open issue",
         "show issue": "open issue",
-        "open issue": "open issue",
+        "new issue": "create issue",
+
+        # GitHub Actions/Workflows
+        "github actions": "view actions",
+        "see actions": "view actions",
+        "view workflow runs": "view workflow",
+        "see workflows": "view workflow",
+
+        # GitHub Commits/History
+        "view commit history": "view commits",
+        "see commits": "view commits",
+        "commit history": "view commits",
+        "see branches": "view branches",
+        "show branches": "view branches",
+        "see tags": "view tags",
+
+        # GitHub Releases
+        "see releases": "view releases",
+        "show releases": "view releases",
+        "new release": "create release",
+        "publish release": "create release",
+
+        # GitHub Admin
+        "repo settings": "view settings",
+        "repository settings": "view settings",
+        "see settings": "view settings",
+        "security alerts": "view security",
+        "see security": "view security",
+        "see insights": "view insights",
+        "repository insights": "view insights",
+
+        # GitHub Community
+        "see discussions": "view discussions",
+        "show discussions": "view discussions",
+        "see wiki": "view wiki",
+        "show wiki": "view wiki",
+        "see projects": "view projects",
+        "project boards": "view projects",
+
+        # GitHub Clone/Watch
+        "download repo": "clone repo",
+        "git clone": "clone repo",
+
+        # Linear
         "view board": "open board",
         "see board": "open board",
         "open backlog": "view backlog",
         "show backlog": "view backlog",
         "add task": "create issue linear",
         "new task": "create issue linear",
+        "see roadmap": "view roadmap",
+        "show roadmap": "view roadmap",
+        "see cycles": "view cycles",
+        "sprint cycles": "view cycles",
+        "see projects": "view linear projects",
+        "linear projects": "view linear projects",
+        "my tasks": "view my issues",
+        "my issues": "view my issues",
+        "assigned to me": "view my issues",
+        "search linear": "search issues linear",
+        "find issues": "search issues linear",
+
+        # Figma
         "view comments": "view comment",
         "view comment": "view comment",
         "show comments": "view comment",
         "share": "share file",
+        "share figma": "share file",
+        "make component": "create component",
+        "new component": "create component",
+        "show layers": "view layers",
+        "layers panel": "view layers",
+        "export figma": "export assets",
+        "download assets": "export assets",
+        "show prototype": "view prototype",
+        "preview prototype": "view prototype",
+        "play prototype": "view prototype",
+
+        # New Relic
+        "see alerts": "view alerts",
+        "show alerts": "view alerts",
+        "alert policies": "view alerts",
+        "see logs": "view logs",
+        "show logs": "view logs",
+        "log viewer": "view logs",
+        "see traces": "view traces",
+        "distributed tracing": "view traces",
+        "see metrics": "view metric",
+        "show metrics": "view metric",
     }
 
     # Apply variations

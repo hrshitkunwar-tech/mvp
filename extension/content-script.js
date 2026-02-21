@@ -18,6 +18,40 @@ function ContentAgent() {
 ContentAgent.prototype.init = function () {
     var self = this;
 
+    // Analytics helper
+    this.trackOverlayEvent = function(eventType, data) {
+        chrome.storage.local.get(['overlayAnalytics'], function(result) {
+            var analytics = result.overlayAnalytics || {
+                totalAttempts: 0,
+                successful: 0,
+                failed: 0,
+                fallbackUsed: 0,
+                events: []
+            };
+
+            analytics.totalAttempts++;
+            if (eventType === 'success') analytics.successful++;
+            if (eventType === 'failed') analytics.failed++;
+            if (eventType === 'fallback') analytics.fallbackUsed++;
+
+            analytics.events.push({
+                type: eventType,
+                timestamp: Date.now(),
+                url: window.location.href,
+                selector: data.selector || null,
+                error: data.error || null,
+                retries: data.retries || 0
+            });
+
+            // Keep only last 1000 events
+            if (analytics.events.length > 1000) {
+                analytics.events = analytics.events.slice(-1000);
+            }
+
+            chrome.storage.local.set({ overlayAnalytics: analytics });
+        });
+    };
+
     // NEW: Inject ZoneGuide into page context (not isolated world)
     if (window.top === window && !window.__ZONEGUIDE_INJECTED__) {
         try {
@@ -131,6 +165,10 @@ ContentAgent.prototype.init = function () {
             var maxRetries = 3;
             var pingTimeout = null;
             var readyHandler = null;
+            var selector = (req.payload && req.payload.selector) || 'unknown';
+
+            // Track attempt
+            self.trackOverlayEvent('attempt', { selector: selector });
 
             // DIRECT CSS FALLBACK: If ZoneGuide fails, do basic highlighting anyway
             function directFallbackHighlight() {
@@ -154,6 +192,9 @@ ContentAgent.prototype.init = function () {
                     }
 
                     if (element) {
+                        // Track fallback success
+                        self.trackOverlayEvent('fallback', { selector: selector, retries: maxRetries + 1 });
+
                         // Scroll into view
                         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
@@ -186,13 +227,49 @@ ContentAgent.prototype.init = function () {
                             element.style.zIndex = '';
                         }, duration);
 
+                        // WebMCP FALLBACK: Try programmatic interaction if supported
+                        if (req.payload.action === 'click' && typeof element.click === 'function') {
+                            try {
+                                console.log('[Navigator] 🖱️ WebMCP fallback: programmatic click');
+                                setTimeout(function() {
+                                    element.click();
+                                    self.trackOverlayEvent('webmcp_click', { selector: selector });
+                                }, 500); // Wait for visual feedback first
+                            } catch (e) {
+                                console.warn('[Navigator] WebMCP click failed:', e);
+                            }
+                        }
+
                         sendResponse({ success: true, fallback: true, found_element: true });
                         return true;
                     }
                 } catch (e) {
                     console.error('[Navigator] Fallback highlight failed:', e);
+                    self.trackOverlayEvent('failed', { selector: selector, error: e.message });
                 }
 
+                // Last resort: try WebMCP navigator.modelContext if available
+                if ('modelContext' in navigator && navigator.modelContext.callTool) {
+                    try {
+                        console.log('[Navigator] 🤖 Trying WebMCP navigator.modelContext fallback');
+                        navigator.modelContext.callTool('click_element', { selector: selector })
+                            .then(function(result) {
+                                console.log('[Navigator] WebMCP click succeeded:', result);
+                                self.trackOverlayEvent('webmcp_native', { selector: selector });
+                                sendResponse({ success: true, webmcp: true });
+                            })
+                            .catch(function(err) {
+                                console.error('[Navigator] WebMCP callTool failed:', err);
+                                self.trackOverlayEvent('failed', { selector: selector, error: 'Element not found' });
+                                sendResponse({ error: 'Element not found', fallback: true });
+                            });
+                        return true;
+                    } catch (e) {
+                        console.warn('[Navigator] WebMCP not available:', e);
+                    }
+                }
+
+                self.trackOverlayEvent('failed', { selector: selector, error: 'Element not found' });
                 sendResponse({ error: 'Element not found', fallback: true });
                 return false;
             }
@@ -207,6 +284,9 @@ ContentAgent.prototype.init = function () {
                         window.removeEventListener('message', readyHandler);
 
                         console.log('[Navigator] ✓ ZoneGuide PONG received, forwarding message');
+
+                        // Track successful PONG
+                        self.trackOverlayEvent('success', { selector: selector, retries: retries });
 
                         // Now forward the actual message
                         window.postMessage(req, '*');
@@ -245,6 +325,7 @@ ContentAgent.prototype.init = function () {
                         tryPing();
                     } else {
                         console.error('[Navigator] ❌ ZoneGuide not ready after', maxRetries + 1, 'attempts. Using fallback.');
+                        self.trackOverlayEvent('timeout', { selector: selector, retries: maxRetries + 1 });
                         // Use direct CSS fallback
                         directFallbackHighlight();
                     }
